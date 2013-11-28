@@ -257,6 +257,26 @@ void vtkWin32OpenGLRenderWindow::MakeCurrent()
           ::LocalFree( lpMsgBuf );
           }
         }
+      if (!IsCurrent())
+        {        
+        const int MAX_RETRY_ATTEMPTS=50;
+        int retryAttempts=0;
+        int makeCurrentFailures=0;
+        while (!IsCurrent())
+          {
+          if (wglMakeCurrent(this->DeviceContext, this->ContextId) != TRUE)
+          {
+            makeCurrentFailures++;
+          }
+          if (retryAttempts>=MAX_RETRY_ATTEMPTS)
+          {
+            vtkErrorMacro("wglMakeCurrent failed in MakeCurrent(). Attempted "<<retryAttempts<<" times.");
+            return;
+          }
+          retryAttempts++;
+          }
+        vtkErrorMacro("wglMakeCurrent succeeded in MakeCurrent() but only after "<<retryAttempts<<" attempts.");
+        }
       }
     }
 }
