@@ -71,6 +71,10 @@ public:
   virtual void DisplayGenericWarningText(const char*);
 
   virtual void DisplayDebugText(const char*);
+  
+  virtual void DisplayMessage(const char* msg, int errorLevel, const char* file, int line, vtkObject* originObject);
+  virtual void FormatMessage(vtkOStrStreamWrapper &formattedMsg, const char* msg, int errorLevel, const char* file, int line, vtkObject* originObject);
+  
   // Description:
   // If PromptUser is set to true then each time a line of text
   // is displayed, the user is asked if they want to keep getting

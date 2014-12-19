@@ -426,25 +426,35 @@ virtual void Get##name (type data[count]) \
 // This is to avoid vtkObject #include of vtkOutputWindow
 // while vtkOutputWindow #includes vtkObject
 
+
+/* These types are used by vtkOutputWindow message methods and vtkObject message macros.  */
+#define VTK_MESSAGE_LEVEL_DEBUG    10
+#define VTK_MESSAGE_LEVEL_WARNING  30
+#define VTK_MESSAGE_LEVEL_ERROR    40
+
+class vtkObject;
+
 extern VTKCOMMONCORE_EXPORT void vtkOutputWindowDisplayText(const char*);
 extern VTKCOMMONCORE_EXPORT void vtkOutputWindowDisplayErrorText(const char*);
 extern VTKCOMMONCORE_EXPORT void vtkOutputWindowDisplayWarningText(const char*);
 extern VTKCOMMONCORE_EXPORT void vtkOutputWindowDisplayGenericWarningText(const char*);
 extern VTKCOMMONCORE_EXPORT void vtkOutputWindowDisplayDebugText(const char*);
+extern VTKCOMMONCORE_EXPORT void vtkOutputWindowDisplayMessage(const char* msg, int errorLevel, const char* file, int line, vtkObject* originObject);
+extern VTKCOMMONCORE_EXPORT void vtkOutputWindowFormatMessage(vtkOStrStreamWrapper &formattedMsg, const char* msg, int errorLevel, const char* file, int line, vtkObject* originObject);
 
 //
 // This macro is used for any output that may not be in an instance method
 // vtkGenericWarningMacro(<< "this is debug info" << this->SomeVariable);
 //
-#define vtkGenericWarningMacro(x) \
-{ if (vtkObject::GetGlobalWarningDisplay()) { \
-      vtkOStreamWrapper::EndlType endl; \
-      vtkOStreamWrapper::UseEndl(endl); \
-      vtkOStrStreamWrapper vtkmsg; \
-      vtkmsg << "Generic Warning: In " __FILE__ ", line " << __LINE__ << "\n" x \
-      << "\n\n"; \
-      vtkOutputWindowDisplayGenericWarningText(vtkmsg.str());\
-      vtkmsg.rdbuf()->freeze(0);}}
+#define vtkGenericWarningMacro(x)                                             \
+{ if (vtkObject::GetGlobalWarningDisplay()) {                                 \
+    vtkOStrStreamWrapper vtkmsg;                                              \
+    vtkOStreamWrapper::EndlType endl;                                         \
+    vtkOStreamWrapper::UseEndl(endl);                                         \
+    vtkmsg << "" x;                                                           \
+    vtkOutputWindowDisplayMessage(vtkmsg.str(), VTK_MESSAGE_LEVEL_WARNING, __FILE__, __LINE__, NULL); \
+    vtkmsg.rdbuf()->freeze(0);                                                \
+  }}
 
 //
 // This macro is used for  debug statements in instance methods
@@ -475,21 +485,23 @@ extern VTKCOMMONCORE_EXPORT void vtkOutputWindowDisplayDebugText(const char*);
    {                                                            \
    if (vtkObject::GetGlobalWarningDisplay())                    \
      {                                                          \
+     vtkOStrStreamWrapper vtkmsg;                               \
      vtkOStreamWrapper::EndlType endl;                          \
      vtkOStreamWrapper::UseEndl(endl);                          \
-     vtkOStrStreamWrapper vtkmsg;                               \
-     vtkmsg << "ERROR: In " __FILE__ ", line " << __LINE__      \
-            << "\n" << self->GetClassName() << " (" << self     \
-            << "): " x << "\n\n";                               \
+     vtkmsg << "" x;                                            \
      if ( self->HasObserver("ErrorEvent") )                     \
        {                                                        \
+       vtkOStrStreamWrapper formattedMsg;                       \
+       vtkOutputWindowFormatMessage(formattedMsg, vtkmsg.str(), VTK_MESSAGE_LEVEL_ERROR, __FILE__, __LINE__, self); \
        self->InvokeEvent("ErrorEvent", vtkmsg.str());           \
+       formattedMsg.rdbuf()->freeze(0);                         \
        }                                                        \
      else                                                       \
        {                                                        \
-       vtkOutputWindowDisplayErrorText(vtkmsg.str());           \
+       vtkOutputWindowDisplayMessage(vtkmsg.str(), VTK_MESSAGE_LEVEL_ERROR, __FILE__, __LINE__, self); \
        }                                                        \
-     vtkmsg.rdbuf()->freeze(0); vtkObject::BreakOnError();      \
+     vtkObject::BreakOnError();                                 \
+     vtkmsg.rdbuf()->freeze(0);                                 \
      }                                                          \
    }
 
@@ -501,20 +513,22 @@ extern VTKCOMMONCORE_EXPORT void vtkOutputWindowDisplayDebugText(const char*);
    {                                                            \
    if (vtkObject::GetGlobalWarningDisplay())                    \
      {                                                          \
+     vtkOStrStreamWrapper vtkmsg;                               \
      vtkOStreamWrapper::EndlType endl;                          \
      vtkOStreamWrapper::UseEndl(endl);                          \
-     vtkOStrStreamWrapper vtkmsg;                               \
-     vtkmsg << "Warning: In " __FILE__ ", line " << __LINE__    \
-            << "\n" << self->GetClassName() << " (" << self     \
-            << "): " x << "\n\n";                               \
+     vtkmsg << "" x;                                            \
      if ( self->HasObserver("WarningEvent") )                   \
        {                                                        \
+       vtkOStrStreamWrapper formattedMsg;                       \
+       vtkOutputWindowFormatMessage(formattedMsg, vtkmsg.str(), VTK_MESSAGE_LEVEL_WARNING, __FILE__, __LINE__, self); \
        self->InvokeEvent("WarningEvent", vtkmsg.str());         \
+       formattedMsg.rdbuf()->freeze(0);                         \
        }                                                        \
      else                                                       \
        {                                                        \
-       vtkOutputWindowDisplayWarningText(vtkmsg.str());         \
+       vtkOutputWindowDisplayMessage(vtkmsg.str(), VTK_MESSAGE_LEVEL_WARNING, __FILE__, __LINE__, self); \
        }                                                        \
+     vtkObject::BreakOnError();                                 \
      vtkmsg.rdbuf()->freeze(0);                                 \
      }                                                          \
    }
@@ -526,12 +540,11 @@ extern VTKCOMMONCORE_EXPORT void vtkOutputWindowDisplayDebugText(const char*);
   {                                                                           \
   if (self->GetDebug() && vtkObject::GetGlobalWarningDisplay())               \
     {                                                                         \
+    vtkOStrStreamWrapper vtkmsg;                                              \
     vtkOStreamWrapper::EndlType endl;                                         \
     vtkOStreamWrapper::UseEndl(endl);                                         \
-    vtkOStrStreamWrapper vtkmsg;                                              \
-    vtkmsg << "Debug: In " __FILE__ ", line " << __LINE__ << "\n"             \
-           << self->GetClassName() << " (" << self << "): " x  << "\n\n";     \
-    vtkOutputWindowDisplayDebugText(vtkmsg.str());                            \
+    vtkmsg << "" x;                                                           \
+    vtkOutputWindowDisplayMessage(vtkmsg.str(), VTK_MESSAGE_LEVEL_DEBUG, __FILE__, __LINE__, self); \
     vtkmsg.rdbuf()->freeze(0);                                                \
     }                                                                         \
   }

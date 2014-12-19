@@ -30,6 +30,16 @@
 vtkOutputWindow* vtkOutputWindow::Instance = 0;
 vtkOutputWindowCleanup vtkOutputWindow::Cleanup;
 
+void vtkOutputWindowFormatMessage(vtkOStrStreamWrapper &formattedMsg, const char* msg, int errorLevel, const char* file, int line, vtkObject* originObject)
+{
+  vtkOutputWindow::GetInstance()->FormatMessage(formattedMsg, msg, errorLevel, file, line, originObject);
+}
+
+void vtkOutputWindowDisplayMessage(const char* msg, int errorLevel, const char* file, int line, vtkObject* originObject)
+{
+  vtkOutputWindow::GetInstance()->DisplayMessage(msg, errorLevel, file, line, originObject);
+}
+
 void vtkOutputWindowDisplayText(const char* message)
 {
   vtkOutputWindow::GetInstance()->DisplayText(message);
@@ -193,4 +203,50 @@ void vtkOutputWindow::SetInstance(vtkOutputWindow* instance)
   instance->Register(NULL);
 }
 
+void vtkOutputWindow::FormatMessage(vtkOStrStreamWrapper &formattedMsg, const char* msg, int errorLevel, const char* file, int line, vtkObject* originObject)
+{
+  vtkOStreamWrapper::EndlType endl;
+  vtkOStreamWrapper::UseEndl(endl);
+  switch (errorLevel)
+    {
+    case VTK_MESSAGE_LEVEL_DEBUG:
+      formattedMsg << "Debug: ";
+      break;
+    case VTK_MESSAGE_LEVEL_WARNING:
+      formattedMsg << "Warning: ";
+      break;
+    case VTK_MESSAGE_LEVEL_ERROR:
+      formattedMsg << "ERROR: ";
+      break;
+    default:
+      break;
+    }
+  formattedMsg << "In " << file << ", line " << line << "\n";
+  if (originObject)
+    {
+    formattedMsg << originObject->GetClassName() << " (" << originObject << "): ";
+    }
+  formattedMsg << msg << "\n\n";
+}
 
+void vtkOutputWindow::DisplayMessage(const char* msg, int errorLevel, const char* file, int line, vtkObject* originObject)
+{
+  vtkOStrStreamWrapper formattedMsg;
+  this->FormatMessage(formattedMsg, msg, errorLevel, file, line, originObject);
+  switch (errorLevel)
+    {
+    case VTK_MESSAGE_LEVEL_DEBUG:
+      this->DisplayDebugText(formattedMsg.str());
+      break;
+    case VTK_MESSAGE_LEVEL_WARNING:
+      this->DisplayWarningText(formattedMsg.str());
+      break;
+    case VTK_MESSAGE_LEVEL_ERROR:
+      this->DisplayErrorText(formattedMsg.str());
+      break;
+    default:
+      this->DisplayText(formattedMsg.str());
+      break;
+    }
+  formattedMsg.rdbuf()->freeze(0);
+}
