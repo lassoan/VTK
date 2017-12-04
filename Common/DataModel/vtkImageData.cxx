@@ -96,6 +96,25 @@ void vtkImageData::CopyStructure(vtkDataSet *ds)
     this->Spacing[i] = sPts->Spacing[i];
     this->Origin[i] = sPts->Origin[i];
   }
+
+  if (ds->Direction)
+  {
+    if (this->Direction)
+    {
+      this->Direction->DeepCopy(ds->Direction);
+    }
+    else
+    {
+      vtkNew<vtkMatrix3x3> newDirection;
+      newDirection->DeepCopy(m->Direction);
+      this->SetDirection(newDirection);
+    }
+  }
+  else
+  {
+    this->ClearDirection();
+  }
+
   this->SetExtent(sPts->GetExtent());
 }
 
@@ -115,7 +134,7 @@ void vtkImageData::CopyInformationFromPipeline(vtkInformation* information)
   // Let the superclass copy whatever it wants.
   this->Superclass::CopyInformationFromPipeline(information);
 
-  this->CopyOriginAndSpacingFromPipeline(information);
+  this->CopyOriginSpacingDirectionFromPipeline(information);
 }
 
 //----------------------------------------------------------------------------
@@ -124,8 +143,18 @@ void vtkImageData::CopyInformationToPipeline(vtkInformation* info)
   // Let the superclass copy information to the pipeline.
   this->Superclass::CopyInformationToPipeline(info);
 
-  // Copy the spacing, origin, and scalar info
+  // Copy the spacing, origin, direction, and scalar info
   info->Set(vtkDataObject::SPACING(), this->Spacing, 3);
+
+  if (this->HasDirection())
+  {
+    info->Set(vtkDataObject::DIRECTION(), this->Direction->Data, 9);
+  }
+  else
+  {
+    info->Remove(vtkDataObject::DIRECTION());
+  }
+
   info->Set(vtkDataObject::ORIGIN(), this->Origin, 3);
   vtkDataObject::SetPointDataActiveScalarInfo(
     info, this->GetScalarType(), this->GetNumberOfScalarComponents());
@@ -256,19 +285,46 @@ vtkCell *vtkImageData::GetCell(vtkIdType cellId)
   // Extract point coordinates and point ids
   // Ids are relative to extent min.
   npts = 0;
-  for (loc[2]=kMin; loc[2]<=kMax; loc[2]++)
-  {
-    x[2] = origin[2] + (loc[2]+extent[4]) * spacing[2];
-    for (loc[1]=jMin; loc[1]<=jMax; loc[1]++)
-    {
-      x[1] = origin[1] + (loc[1]+extent[2]) * spacing[1];
-      for (loc[0]=iMin; loc[0]<=iMax; loc[0]++)
-      {
-        x[0] = origin[0] + (loc[0]+extent[0]) * spacing[0];
 
-        idx = loc[0] + loc[1]*dims[0] + loc[2]*d01;
-        cell->PointIds->SetId(npts,idx);
-        cell->Points->SetPoint(npts++,x);
+  if (this->IsDirectionIdentity())
+  {
+    for (loc[2]=kMin; loc[2]<=kMax; loc[2]++)
+    {
+      x[2] = origin[2] + (loc[2]+extent[4]) * spacing[2];
+      for (loc[1]=jMin; loc[1]<=jMax; loc[1]++)
+      {
+        x[1] = origin[1] + (loc[1]+extent[2]) * spacing[1];
+        for (loc[0]=iMin; loc[0]<=iMax; loc[0]++)
+        {
+          x[0] = origin[0] + (loc[0]+extent[0]) * spacing[0];
+
+          idx = loc[0] + loc[1]*dims[0] + loc[2]*d01;
+          cell->PointIds->SetId(npts,idx);
+          cell->Points->SetPoint(npts++,x);
+        }
+      }
+    }
+  }
+  else
+  {
+    vtkNew<vtkMatrix4x4> voxelToPointMatrix;
+    this->GetVoxelToPointMatrix(voxelToPointMatrix);
+    double posVoxel[4] = { 0, 0, 0, 1 };
+    double posPoint[4] = { 0, 0, 0, 1 };
+    for (loc[2] = kMin; loc[2] <= kMax; loc[2]++)
+    {
+      for (loc[1] = jMin; loc[1] <= jMax; loc[1]++)
+      {
+        for (loc[0] = iMin; loc[0] <= iMax; loc[0]++)
+        {
+          posVoxel[0] = loc[0] + extent[0];
+          posVoxel[1] = loc[1] + extent[2];
+          posVoxel[2] = loc[2] + extent[4];
+          voxelToPointMatrix->MultiplyPoint(posVoxel, posPoint);
+          idx = loc[0] + loc[1] * dims[0] + loc[2] * d01;
+          cell->PointIds->SetId(npts, idx);
+          cell->Points->SetPoint(npts++, posPoint);
+        }
       }
     }
   }
@@ -368,6 +424,7 @@ vtkCell *vtkImageData::GetCell(int iMin, int jMin, int kMin) {
 
   // Extract point coordinates and point ids
   // Ids are relative to extent min.
+  // TODO:ImageDirection
   npts = 0;
   for (loc[2] = kMin; loc[2] <= kMax; loc[2]++)
   {
@@ -479,6 +536,7 @@ void vtkImageData::GetCell(vtkIdType cellId, vtkGenericCell *cell)
   }
 
   // Extract point coordinates and point ids
+  // TODO:ImageDirection
   for (npts=0,loc[2]=kMin; loc[2]<=kMax; loc[2]++)
   {
     x[2] = origin[2] + (loc[2]+extent[4]) * spacing[2];
@@ -523,6 +581,8 @@ void vtkImageData::GetCellBounds(vtkIdType cellId, double bounds[6])
       = bounds[4] = bounds[5] = 0.0;
     return;
   }
+
+  // TODO:ImageDirection
 
   switch (this->DataDescription)
   {
@@ -678,6 +738,7 @@ void vtkImageData::GetPoint(vtkIdType ptId, double x[3])
 
   for (i=0; i<3; i++)
   {
+    // TODO:ImageDirection
     x[i] = origin[i] + (loc[i]+extent[i*2]) * spacing[i];
   }
 }
@@ -699,6 +760,7 @@ vtkIdType vtkImageData::FindPoint(double x[3])
   //
   //  Compute the ijk location
   //
+  // TODO:ImageDirection
   for (i=0; i<3; i++)
   {
     d = x[i] - origin[i];
@@ -747,6 +809,7 @@ vtkIdType vtkImageData::FindCell(double x[3], vtkCell *vtkNotUsed(cell),
     const double* bounds = this->Bounds;
 
     // Compute squared distance of point x from the boundary
+    // TODO:ImageDirection
     double dist2 = 0.0;
 
     for (int i=0; i<3; i++)
@@ -881,6 +944,8 @@ void vtkImageData::ComputeBounds()
   }
   else
   {
+    // TODO:ImageDirection
+
     int swapXBounds = (spacing[0] < 0);  // 1 if true, 0 if false
     int swapYBounds = (spacing[1] < 0);  // 1 if true, 0 if false
     int swapZBounds = (spacing[2] < 0);  // 1 if true, 0 if false
@@ -931,6 +996,8 @@ void vtkImageData::GetVoxelGradient(int i, int j, int k, vtkDataArray *s,
 void vtkImageData::GetPointGradient(int i, int j, int k, vtkDataArray *s,
                                     double g[3])
 {
+  // TODO:ImageDirection
+
   const double *ar = this->Spacing;
   double sp, sm;
   const int *extent = this->Extent;
@@ -1053,6 +1120,8 @@ int vtkImageData::ComputeStructuredCoordinates( const double x[3], int ijk[3], d
                                                 const double* origin,
                                                 const double* bounds)
 {
+  // TODO:ImageDirection
+
   // tolerance is needed for 2D data (this is squared tolerance)
   const double tol2 = 1e-12;
   //
@@ -1125,6 +1194,7 @@ int vtkImageData::ComputeStructuredCoordinates( const double x[3], int ijk[3], d
 int vtkImageData::ComputeStructuredCoordinates(const double x[3], int ijk[3],
                                                double pcoords[3])
 {
+  // TODO:ImageDirection
   return ComputeStructuredCoordinates(x,ijk,pcoords,this->Extent, this->Spacing, this->Origin, this->GetBounds());
 }
 
@@ -1140,6 +1210,22 @@ void vtkImageData::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Spacing: (" << this->Spacing[0] << ", "
                                << this->Spacing[1] << ", "
                                << this->Spacing[2] << ")\n";
+
+  if (this->HasDirection())
+  {
+    os << indent << "Direction: (";
+    double *m = this->Direction->GetData();
+    for (int i = 0; i < 9; i++)
+    {
+      if (i > 0)
+      {
+        os << ", ";
+      }
+      os << m[i];
+    }
+    os << ")\n";
+  }
+
   os << indent << "Origin: (" << this->Origin[0] << ", "
                               << this->Origin[1] << ", "
                               << this->Origin[2] << ")\n";
@@ -1345,7 +1431,7 @@ void vtkImageData::ComputeIncrements(int numberOfComponents, vtkIdType inc[3])
 }
 
 //----------------------------------------------------------------------------
-void vtkImageData::CopyOriginAndSpacingFromPipeline(vtkInformation* info)
+void vtkImageData::CopyOriginSpacingDirectionFromPipeline(vtkInformation* info)
 {
   // Copy origin and spacing from pipeline information to the internal
   // copies.
@@ -1356,6 +1442,11 @@ void vtkImageData::CopyOriginAndSpacingFromPipeline(vtkInformation* info)
   if(info->Has(ORIGIN()))
   {
     this->SetOrigin(info->Get(ORIGIN()));
+  }
+  if (info->Has(DIRECTION()))
+  {
+    //TODO:ImageDirection
+    this->SetDirection(info->Get(DIRECTION()));
   }
 }
 
@@ -2093,6 +2184,7 @@ void vtkImageData::ShallowCopy(vtkDataObject *dataObject)
   {
     this->InternalImageDataCopy(imageData);
   }
+  this->SetDirection(imageData->GetDirection());
 
   // Do superclass
   this->vtkDataSet::ShallowCopy(dataObject);
@@ -2106,6 +2198,27 @@ void vtkImageData::DeepCopy(vtkDataObject *dataObject)
   if ( imageData != nullptr )
   {
     this->InternalImageDataCopy(imageData);
+  }
+
+  if (this->GetDirection() != dataObject->GetDirection())
+  {
+    if (dataObject->GetDirection())
+    {
+      if (this->Direction)
+      {
+        this->Direction->DeepCopy(dataObject->GetDirection());
+      }
+      else
+      {
+        vtkNew<vtkMatrix3x3> newDirection;
+        newDirection->DeepCopy(dataObject->GetDirection());
+        this->SetDirection(newDirection);
+      }
+    }
+    else
+    {
+      this->SetDirection(nullptr);
+    }
   }
 
   // Do superclass
@@ -2129,8 +2242,6 @@ void vtkImageData::InternalImageDataCopy(vtkImageData *src)
   }
   this->SetExtent(src->GetExtent());
 }
-
-
 
 //----------------------------------------------------------------------------
 vtkIdType vtkImageData::GetNumberOfCells()
@@ -2271,4 +2382,132 @@ vtkImageData* vtkImageData::GetData(vtkInformation* info)
 vtkImageData* vtkImageData::GetData(vtkInformationVector* v, int i)
 {
   return vtkImageData::GetData(v->GetInformationObject(i));
+}
+
+//------------------------------------------------------------------------------
+bool vtkImageData::HasDirection()
+{
+  return this->Direction != nullptr;
+}
+
+//------------------------------------------------------------------------------
+void vtkImageData::ClearDirection()
+{
+  this->SetDirection(nullptr);
+}
+
+//------------------------------------------------------------------------------
+void vtkImageData::SetDirection(vtkMatrix3x3 *matrix)
+{
+  if (!matrix)
+  {
+    if (this->Direction)
+    {
+      // If we're clearing a matrix, zero out the origin:
+      this->Direction = nullptr;
+      this->Modified();
+    }
+  }
+  else if (this->Direction != matrix)
+  {
+    this->Direction = matrix;
+    this->Modified();
+  }
+}
+
+//------------------------------------------------------------------------------
+void vtkImageData::SetDirection(const vtkVector3d &a, const vtkVector3d &b,
+  const vtkVector3d &c)
+{
+  if (this->Direction == nullptr)
+  {
+    this->Direction.TakeReference(vtkMatrix3x3::New());
+    this->Modified();
+  }
+
+  double *mat = this->Direction->GetData();
+  if (mat[0] != a[0] || mat[1] != b[0] || mat[2] != c[0] ||
+    mat[3] != a[1] || mat[4] != b[1] || mat[5] != c[1] ||
+    mat[6] != a[2] || mat[7] != b[2] || mat[8] != c[2])
+  {
+    mat[0] = a[0];
+    mat[1] = b[0];
+    mat[2] = c[0];
+    mat[3] = a[1];
+    mat[4] = b[1];
+    mat[5] = c[1];
+    mat[6] = a[2];
+    mat[7] = b[2];
+    mat[8] = c[2];
+    this->Modified();
+  }
+}
+
+//------------------------------------------------------------------------------
+vtkMatrix3x3 *vtkImageData::GetDirection()
+{
+  return this->Direction;
+}
+
+//------------------------------------------------------------------------------
+void vtkImageData::GetDirection(vtkVector3d &a, vtkVector3d &b, vtkVector3d &c)
+{
+  if (this->Direction)
+  {
+    double *mat = this->Direction->GetData();
+    a[0] = mat[0];
+    a[1] = mat[3];
+    a[2] = mat[6];
+    b[0] = mat[1];
+    b[1] = mat[4];
+    b[2] = mat[7];
+    c[0] = mat[2];
+    c[1] = mat[5];
+    c[2] = mat[8];
+  }
+  else
+  {
+    a = vtkVector3d(1., 0., 0.);
+    b = vtkVector3d(0., 1., 0.);
+    c = vtkVector3d(0., 0., 1.);
+  }
+}
+
+//------------------------------------------------------------------------------
+void vtkImageData::GetVoxelToPointMatrix(vtkMatrix4x4* voxelToPointMatrix)
+{
+  if (voxelToPointMatrix)
+  {
+    vtkErrorMacro("GetVoxelToPointMatrix received invalid voxelToPointMatrix as input");
+    return;
+  }
+  if (this->IsDirectionIdentity())
+  {
+    voxelToPointMatrix->SetElement(0, 0, this->Spacing[0]);
+    voxelToPointMatrix->SetElement(0, 1, 0);
+    voxelToPointMatrix->SetElement(0, 2, 0);
+    voxelToPointMatrix->SetElement(1, 0, 0);
+    voxelToPointMatrix->SetElement(1, 1, this->Spacing[1]);
+    voxelToPointMatrix->SetElement(1, 2, 0);
+    voxelToPointMatrix->SetElement(2, 0, 0);
+    voxelToPointMatrix->SetElement(2, 1, 0);
+    voxelToPointMatrix->SetElement(2, 2, this->Spacing[2]);
+  }
+  else
+  {
+    double* directionMatrixElements = this->Direction->Data();
+    voxelToPointMatrix->SetElement(0, 0, directionMatrixElements[0] * this->Spacing[0]);
+    voxelToPointMatrix->SetElement(0, 1, directionMatrixElements[1] * this->Spacing[1]);
+    voxelToPointMatrix->SetElement(0, 2, directionMatrixElements[2] * this->Spacing[2]);
+    voxelToPointMatrix->SetElement(1, 0, directionMatrixElements[3] * this->Spacing[0]);
+    voxelToPointMatrix->SetElement(1, 1, directionMatrixElements[4] * this->Spacing[1]);
+    voxelToPointMatrix->SetElement(1, 2, directionMatrixElements[5] * this->Spacing[2]);
+    voxelToPointMatrix->SetElement(2, 0, directionMatrixElements[6] * this->Spacing[0]);
+    voxelToPointMatrix->SetElement(2, 1, directionMatrixElements[7] * this->Spacing[1]);
+    voxelToPointMatrix->SetElement(2, 2, directionMatrixElements[8] * this->Spacing[2]);
+  }
+
+  voxelToPointMatrix->SetElement(0, 3, this->Origin[0]);
+  voxelToPointMatrix->SetElement(1, 3, this->Origin[1]);
+  voxelToPointMatrix->SetElement(2, 3, this->Origin[2]);
 }

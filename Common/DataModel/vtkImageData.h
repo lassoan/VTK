@@ -32,6 +32,8 @@
 
 class vtkDataArray;
 class vtkLine;
+class vtkMatrix3x3;
+class vtkMatrix4x4;
 class vtkPixel;
 class vtkVertex;
 class vtkVoxel;
@@ -334,6 +336,34 @@ public:
   vtkGetVector3Macro(Spacing,double);
   //@}
 
+  /**
+  * Return true if axis direction is identity matrix.
+  */
+  bool IsDirectionIdentity();
+
+  //@{
+  /**
+  * The axis direction vectors. The matrix is stored using a row-major layout, with
+  * the vectors encoded as columns.
+  */
+  void SetDirection(vtkMatrix3x3 *matrix);
+  void SetDirection(const vtkVector3d &a,
+    const vtkVector3d &b,
+    const vtkVector3d &c);
+  //@}
+
+  /**
+  * Get axis direction vectors. The matrix is stored using a row-major
+  * layout, with the vectors encoded as columns. Will return nullptr if no
+  * direction matrix is cleared.
+  */
+  vtkMatrix3x3* GetDirection();
+
+  /**
+  * Get axis direction vectors.
+  */
+  void GetDirection(vtkVector3d &a, vtkVector3d &b, vtkVector3d &c);
+
   //@{
   /**
    * Set/Get the origin of the dataset. The origin is the position in world
@@ -446,6 +476,7 @@ protected:
   vtkIdType Increments[3];
 
   double Origin[3];
+  vtkSmartPointer<vtkMatrix3x3> Direction;
   double Spacing[3];
 
   int Extent[6];
@@ -463,7 +494,8 @@ protected:
   // scalar field explicitly
   void ComputeIncrements(int numberOfComponents, vtkIdType inc[3]);
   void ComputeIncrements(vtkDataArray *scalars, vtkIdType inc[3]);
-  void CopyOriginAndSpacingFromPipeline(vtkInformation* info);
+  void CopyOriginSpacingDirectionFromPipeline(vtkInformation* info);
+  void GetVoxelToPointMatrix(vtkMatrix4x4* voxelToPointMatrix);
 
   vtkTimeStamp ExtentComputeTime;
 
@@ -533,6 +565,16 @@ inline vtkIdType vtkImageData::GetNumberOfPoints()
 inline int vtkImageData::GetDataDimension()
 {
   return vtkStructuredData::GetDataDimension(this->DataDescription);
+}
+
+//----------------------------------------------------------------------------
+inline bool vtkImageData::IsDirectionIdentity()
+{
+  if (this->Direction == nullptr)
+  {
+    return true;
+  }
+  return this->Direction->IsIdentity();
 }
 
 #endif
