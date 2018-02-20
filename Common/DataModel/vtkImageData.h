@@ -28,6 +28,7 @@
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkDataSet.h"
 
+#include "vtkSmartPointer.h"
 #include "vtkStructuredData.h" // Needed for inline methods
 
 class vtkDataArray;
@@ -35,6 +36,7 @@ class vtkLine;
 class vtkMatrix3x3;
 class vtkMatrix4x4;
 class vtkPixel;
+class vtkVector3d;
 class vtkVertex;
 class vtkVoxel;
 
@@ -341,6 +343,17 @@ public:
   */
   bool IsDirectionIdentity();
 
+  /**
+  * Return true if axis direction is defined (set to non-nullptr).
+  */
+  bool HasDirection();
+
+  /**
+  * Clears direction information (set to non-nullptr).
+  * Direction matrix is considered to be identity.
+  */
+  void ClearDirection();
+
   //@{
   /**
   * The axis direction vectors. The matrix is stored using a row-major layout, with
@@ -350,12 +363,13 @@ public:
   void SetDirection(const vtkVector3d &a,
     const vtkVector3d &b,
     const vtkVector3d &c);
+  void SetDirectionData(const double *matrix);
   //@}
 
   /**
   * Get axis direction vectors. The matrix is stored using a row-major
-  * layout, with the vectors encoded as columns. Will return nullptr if no
-  * direction matrix is cleared.
+  * layout, with the vectors encoded as columns. Will return nullptr if
+  * direction matrix is not specified.
   */
   vtkMatrix3x3* GetDirection();
 
@@ -476,7 +490,7 @@ protected:
   vtkIdType Increments[3];
 
   double Origin[3];
-  vtkSmartPointer<vtkMatrix3x3> Direction;
+  vtkMatrix3x3* Direction;
   double Spacing[3];
 
   int Extent[6];
@@ -568,13 +582,21 @@ inline int vtkImageData::GetDataDimension()
 }
 
 //----------------------------------------------------------------------------
-inline bool vtkImageData::IsDirectionIdentity()
+inline bool vtkImageData::HasDirection()
 {
-  if (this->Direction == nullptr)
-  {
-    return true;
-  }
-  return this->Direction->IsIdentity();
+  return this->Direction != nullptr;
+}
+
+//----------------------------------------------------------------------------
+inline void vtkImageData::ClearDirection()
+{
+  this->SetDirection((vtkMatrix3x3*)nullptr);
+}
+
+//------------------------------------------------------------------------------
+inline vtkMatrix3x3 *vtkImageData::GetDirection()
+{
+  return this->Direction;
 }
 
 #endif

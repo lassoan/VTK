@@ -493,9 +493,11 @@ bool vtkMatplotlibMathTextUtilities::PrepareImageData(vtkImageData *data,
       imageExtent[5] != targetExtent[5] ||
       fabs(imageSpacing[0] - 1.0) > 1e-10 ||
       fabs(imageSpacing[1] - 1.0) > 1e-10 ||
-      fabs(imageSpacing[2] - 1.0) > 1e-10 )
+      fabs(imageSpacing[2] - 1.0) > 1e-10 ||
+      data->HasDirection())
   {
     data->SetSpacing(1.0, 1.0, 1.0);
+    data->ClearDirection();
     data->SetExtent(targetExtent);
     data->AllocateScalars(VTK_UNSIGNED_CHAR, 4);
   }

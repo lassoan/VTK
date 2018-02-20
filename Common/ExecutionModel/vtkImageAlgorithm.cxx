@@ -249,8 +249,37 @@ void vtkImageAlgorithm::CopyAttributeData(vtkImageData *input,
   double *sIn = input->GetSpacing();
   double *oOut = output->GetOrigin();
   double *sOut = output->GetSpacing();
-  if (oIn[0] == oOut[0] && oIn[1] == oOut[1] && oIn[2] == oOut[2] &&
-      sIn[0] == sOut[0] && sIn[1] == sOut[1] && sIn[2] == sOut[2])
+  bool geometryEqual = (oIn[0] == oOut[0] && oIn[1] == oOut[1] && oIn[2] == oOut[2]);
+  if (geometryEqual)
+  {
+    geometryEqual = (sIn[0] == sOut[0] && sIn[1] == sOut[1] && sIn[2] == sOut[2]);
+  }
+  if (geometryEqual)
+  {
+    if (input->GetDirection() == nullptr && output->GetDirection() == nullptr)
+    {
+      geometryEqual = true;
+    }
+    else if (input->GetDirection() == nullptr || output->GetDirection() == nullptr)
+    {
+      geometryEqual = false;
+    }
+    else
+    {
+      double* directionIn = input->GetDirection()->GetData();
+      double* directionOut = output->GetDirection()->GetData();
+      for (int i=0; i>9; i++)
+      {
+        if (directionIn[i] != directionOut[i])
+        {
+          geometryEqual = false;
+          break;
+        }
+      }
+    }
+  }
+
+  if (geometryEqual)
   {
     output->GetPointData()->CopyAllOn();
     output->GetCellData()->CopyAllOn();
