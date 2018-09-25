@@ -261,12 +261,26 @@ void vtkInteractorStyle::SetInteractor(vtkRenderWindowInteractor *i)
                    this->EventCallbackCommand,
                    this->Priority);
 
+    i->AddObserver(vtkCommand::StartPinchEvent,
+                   this->EventCallbackCommand,
+                   this->Priority);
     i->AddObserver(vtkCommand::PinchEvent,
+                   this->EventCallbackCommand,
+                   this->Priority);
+    i->AddObserver(vtkCommand::EndPinchEvent,
+                   this->EventCallbackCommand,
+                   this->Priority);
+
+    i->AddObserver(vtkCommand::StartPanEvent,
                    this->EventCallbackCommand,
                    this->Priority);
     i->AddObserver(vtkCommand::PanEvent,
                    this->EventCallbackCommand,
                    this->Priority);
+    i->AddObserver(vtkCommand::EndPanEvent,
+                   this->EventCallbackCommand,
+                   this->Priority);
+
     i->AddObserver(vtkCommand::RotateEvent,
                    this->EventCallbackCommand,
                    this->Priority);
@@ -559,6 +573,26 @@ void vtkInteractorStyle::StartZoom()
 void vtkInteractorStyle::EndZoom()
 {
   if (this->State != VTKIS_ZOOM)
+  {
+    return;
+  }
+  this->StopState();
+}
+
+//----------------------------------------------------------------------------
+void vtkInteractorStyle::StartPinch()
+{
+  if (this->State != VTKIS_NONE)
+  {
+    return;
+  }
+  this->StartState(VTKIS_PINCH);
+}
+
+//----------------------------------------------------------------------------
+void vtkInteractorStyle::EndPinch()
+{
+  if (this->State != VTKIS_PINCH)
   {
     return;
   }
@@ -1226,6 +1260,17 @@ void vtkInteractorStyle::ProcessEvents(vtkObject* vtkNotUsed(object),
       self->DelegateTDxEvent(event,calldata);
       break;
 
+    case vtkCommand::StartPinchEvent:
+      if (self->HandleObservers &&
+        self->HasObserver(vtkCommand::StartPinchEvent))
+      {
+        self->InvokeEvent(vtkCommand::StartPinchEvent, nullptr);
+      }
+      else
+      {
+        self->OnStartPinch();
+      }
+      break;
     case vtkCommand::PinchEvent:
       if (self->HandleObservers &&
           self->HasObserver(vtkCommand::PinchEvent))
@@ -1237,6 +1282,29 @@ void vtkInteractorStyle::ProcessEvents(vtkObject* vtkNotUsed(object),
         self->OnPinch();
       }
       break;
+    case vtkCommand::EndPinchEvent:
+      if (self->HandleObservers &&
+        self->HasObserver(vtkCommand::EndPinchEvent))
+      {
+        self->InvokeEvent(vtkCommand::EndPinchEvent, nullptr);
+      }
+      else
+      {
+        self->OnEndPinch();
+      }
+      break;
+
+    case vtkCommand::StartPanEvent:
+      if (self->HandleObservers &&
+        self->HasObserver(vtkCommand::StartPanEvent))
+      {
+        self->InvokeEvent(vtkCommand::StartPanEvent, nullptr);
+      }
+      else
+      {
+        self->OnStartPan();
+      }
+      break;
     case vtkCommand::PanEvent:
       if (self->HandleObservers &&
           self->HasObserver(vtkCommand::PanEvent))
@@ -1246,6 +1314,17 @@ void vtkInteractorStyle::ProcessEvents(vtkObject* vtkNotUsed(object),
       else
       {
         self->OnPan();
+      }
+      break;
+    case vtkCommand::EndPanEvent:
+      if (self->HandleObservers &&
+        self->HasObserver(vtkCommand::EndPanEvent))
+      {
+        self->InvokeEvent(vtkCommand::EndPanEvent, nullptr);
+      }
+      else
+      {
+        self->OnEndPan();
       }
       break;
 

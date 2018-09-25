@@ -117,6 +117,7 @@
 #define VTKIS_EXIT                   15 // call exit callback
 #define VTKIS_TOGGLE_DRAW_CONTROLS   16 // draw device controls helpers
 #define VTKIS_MENU                   17 // invoke an application menu
+#define VTKIS_PINCH                  18 // multi-touch pinch (Windows: on screen; MacOS: touchpad)
 
 #define VTKIS_ANIM_OFF 0
 #define VTKIS_ANIM_ON  1
@@ -297,9 +298,13 @@ public:
   /**
    * gesture based events
    */
+  virtual void OnStartPinch() {}
   virtual void OnPinch() {}
+  virtual void OnEndPinch() {}
   virtual void OnRotate() {}
+  virtual void OnStartPan() {}
   virtual void OnPan() {}
+  virtual void OnEndPan() {}
   virtual void OnTap() {}
   virtual void OnLongTap() {}
   virtual void OnSwipe() {}
@@ -322,6 +327,8 @@ public:
   virtual void EndRotate();
   virtual void StartZoom();
   virtual void EndZoom();
+  virtual void StartPinch();
+  virtual void EndPinch();
   virtual void StartPan();
   virtual void EndPan();
   virtual void StartSpin();

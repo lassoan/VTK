@@ -114,6 +114,10 @@ vtkRenderWindowInteractor::vtkRenderWindowInteractor()
   this->LastRotation = 0;
   this->Scale = 0;
   this->LastScale = 0;
+  this->Translation[0] = this->LastTranslation[0] = 0.0;
+  this->Translation[1] = this->LastTranslation[1] = 0.0;
+  this->PinchPosition[0] = this->LastPinchPosition[0] = 0.0;
+  this->PinchPosition[1] = this->LastPinchPosition[1] = 0.0;
   this->RepeatCount = 0;
   this->KeySym = nullptr;
   this->TimerEventId = 0;
@@ -577,15 +581,29 @@ void vtkRenderWindowInteractor::SetRotation(double rot)
 }
 
 //----------------------------------------------------------------------------
-void vtkRenderWindowInteractor::SetTranslation(double val[2])
+void vtkRenderWindowInteractor::SetTranslation(double x, double y)
 {
   this->LastTranslation[0] = this->Translation[0];
   this->LastTranslation[1] = this->Translation[1];
-  if (this->Translation[0] != val[0] ||
-      this->Translation[1] != val[1])
+  if (this->Translation[0] != x ||
+      this->Translation[1] != y)
   {
-    this->Translation[0] = val[0];
-    this->Translation[1] = val[1];
+    this->Translation[0] = x;
+    this->Translation[1] = y;
+    this->Modified();
+  }
+}
+
+//----------------------------------------------------------------------------
+void vtkRenderWindowInteractor::SetPinchPosition(double x, double y)
+{
+  this->LastPinchPosition[0] = this->PinchPosition[0];
+  this->LastPinchPosition[1] = this->PinchPosition[1];
+  if (this->PinchPosition[0] != x ||
+    this->PinchPosition[1] != y)
+  {
+    this->PinchPosition[0] = x;
+    this->PinchPosition[1] = y;
     this->Modified();
   }
 }

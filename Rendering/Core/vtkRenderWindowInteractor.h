@@ -562,9 +562,42 @@ public:
   /**
    * Set/get the translation for pan/swipe gestures, update LastTranslation
    */
-  void SetTranslation(double val[2]);
+  void SetTranslation(double x, double y);
   vtkGetVector2Macro(Translation, double);
   vtkGetVector2Macro(LastTranslation, double);
+  virtual void SetTranslation(double pos[2])
+  {
+    this->SetTranslation(pos[0], pos[1]);
+  }
+  virtual void SetTranslationFlipY(double x, double y)
+  {
+    this->SetTranslation(x, this->Size[1] - y - 1);
+  }
+  virtual void SetTranslationFlipY(double pos[2])
+  {
+    this->SetTranslationFlipY(pos[0], pos[1]);
+  }
+  //@}
+
+  //@{
+  /**
+  * Set/get the position for pinch gestures, update LastPinchPosition
+  */
+  void SetPinchPosition(double x, double y);
+  vtkGetVector2Macro(PinchPosition, double);
+  vtkGetVector2Macro(LastPinchPosition, double);
+  virtual void SetPinchPosition(double pos[2])
+  {
+    this->SetPinchPosition(pos[0], pos[1]);
+  }
+  virtual void SetPinchPositionFlipY(double x, double y)
+  {
+    this->SetPinchPosition(x, this->Size[1] - y - 1);
+  }
+  virtual void SetPinchPositionFlipY(double pos[2])
+  {
+    this->SetPinchPositionFlipY(pos[0], pos[1]);
+  }
   //@}
 
   //@{
@@ -822,6 +855,8 @@ protected:
   double LastScale;
   double Translation[2];
   double LastTranslation[2];
+  double PinchPosition[2];
+  double LastPinchPosition[2];
   int   RepeatCount;
   char* KeySym;
   int   EventPosition[2];
