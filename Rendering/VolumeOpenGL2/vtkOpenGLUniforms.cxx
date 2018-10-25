@@ -25,7 +25,9 @@ class vtkCustomUniform
 {
 public:
     virtual ~vtkCustomUniform() {}
-    virtual std::string GetGlslDec( const std::string & ) { return std::string(); }
+    virtual vtkOpenGLUniforms::UniformType GetType() = 0;
+    virtual vtkIdType GetVectorSize() { return 1; }
+    virtual std::string GetGlslDec( std::string ) { return std::string(); }
     virtual bool SetUniform( const char *, vtkShaderProgram * ) { return false; }
     virtual void PrintSelf( const char *, ostream&, vtkIndent ) {}
 };
@@ -34,8 +36,10 @@ class vtkCustomUniformi : public vtkCustomUniform
 {
 public:
     vtkCustomUniformi( int val ) { value = val; }
+    vtkOpenGLUniforms::UniformType GetType() override { return vtkOpenGLUniforms::Typei; }
     void SetValue( int val ) { value = val; }
-    std::string GetGlslDec( const std::string & name ) override { return std::string("uniform int ") + name + ";\n"; }
+    bool GetValue( int& val ) { val = value; return true; }
+    std::string GetGlslDec( std::string name ) override { return std::string("uniform int ") + name + ";\n"; }
     bool SetUniform( const char * name, vtkShaderProgram * p ) override { return p->SetUniformi( name, value ); }
     void PrintSelf( const char * name, ostream& os, vtkIndent indent ) override
     { os << indent << name << ": " << value << endl;}
@@ -47,8 +51,10 @@ class vtkCustomUniformf : public vtkCustomUniform
 {
 public:
     vtkCustomUniformf( float val ) { value = val; }
+    vtkOpenGLUniforms::UniformType GetType() override { return vtkOpenGLUniforms::Typef; }
     void SetValue( float val ) { value = val; }
-    std::string GetGlslDec( const std::string & name ) override { return std::string("uniform float ") + name + ";\n"; }
+    bool GetValue( float& val ) { val = value; return true; }
+    std::string GetGlslDec( std::string name ) override { return std::string("uniform float ") + name + ";\n"; }
     bool SetUniform( const char * name, vtkShaderProgram * p ) override { return p->SetUniformf( name, value ); }
     void PrintSelf( const char * name, ostream& os, vtkIndent indent ) override
     { os << indent << name << ": " << value << endl;}
@@ -60,8 +66,10 @@ class vtkCustomUniform2i : public vtkCustomUniform
 {
 public:
     vtkCustomUniform2i( const int val[2] ) { value[0] = val[0]; value[1] = val[1]; }
+    vtkOpenGLUniforms::UniformType GetType() override { return vtkOpenGLUniforms::Type2i; }
     void SetValue( const int val[2] ) { value[0] = val[0]; value[1] = val[1]; }
-    std::string GetGlslDec( const std::string & name ) override { return std::string("uniform ivec2 ") + name + ";\n"; }
+    bool GetValue( int val[2] ) { val[0] = value[0]; val[1] = value[1]; return true; }
+    std::string GetGlslDec( std::string name ) override { return std::string("uniform ivec2 ") + name + ";\n"; }
     bool SetUniform( const char * name, vtkShaderProgram * p ) override { return p->SetUniform2i( name, value ); }
     void PrintSelf( const char * name, ostream& os, vtkIndent indent ) override
     { os << indent << name << ": ( " << value[0] << ", " << value[1] << " )" << endl;}
@@ -73,8 +81,10 @@ class vtkCustomUniform2f : public vtkCustomUniform
 {
 public:
     vtkCustomUniform2f( const float val[2] ) { value[0] = val[0]; value[1] = val[1]; }
+    vtkOpenGLUniforms::UniformType GetType() override { return vtkOpenGLUniforms::Type2f; }
     void SetValue( const float val[2] ) { value[0] = val[0]; value[1] = val[1]; }
-    std::string GetGlslDec( const std::string & name ) override { return std::string("uniform vec2 ") + name + ";\n"; }
+    bool GetValue( float val[2] ) { val[0] = value[0]; val[1] = value[1]; return true; }
+    std::string GetGlslDec( std::string name ) override { return std::string("uniform vec2 ") + name + ";\n"; }
     bool SetUniform( const char * name, vtkShaderProgram * p ) override { return p->SetUniform2f( name, value ); }
     void PrintSelf( const char * name, ostream& os, vtkIndent indent ) override
     { os << indent << name << ": ( " << value[0] << ", " << value[1] << " )" << endl;}
@@ -86,8 +96,10 @@ class vtkCustomUniform3f : public vtkCustomUniform
 {
 public:
     vtkCustomUniform3f( const float val[3] ) { value[0] = val[0]; value[1] = val[1]; value[2] = val[2]; }
+    vtkOpenGLUniforms::UniformType GetType() override { return vtkOpenGLUniforms::Type3f; }
     void SetValue( const float val[3] ) { value[0] = val[0]; value[1] = val[1]; value[2] = val[2]; }
-    std::string GetGlslDec( const std::string & name ) override { return std::string("uniform vec3 ") + name + ";\n"; }
+    bool GetValue( float val[3] ) { val[0] = value[0]; val[1] = value[1]; val[2] = value[2]; return true; }
+    std::string GetGlslDec( std::string name ) override { return std::string("uniform vec3 ") + name + ";\n"; }
     bool SetUniform( const char * name, vtkShaderProgram * p ) override { return p->SetUniform3f( name, value ); }
     void PrintSelf( const char * name, ostream& os, vtkIndent indent ) override
     { os << indent << name << ": ( " << value[0] << ", " << value[1] << ", " << value[2] << " )" << endl;}
@@ -99,8 +111,10 @@ class vtkCustomUniform3d : public vtkCustomUniform
 {
 public:
     vtkCustomUniform3d( const double val[3] ) { value[0] = val[0]; value[1] = val[1]; value[2] = val[2]; }
+    vtkOpenGLUniforms::UniformType GetType() override { return vtkOpenGLUniforms::Type3d; }
     void SetValue( const double val[3] ) { value[0] = val[0]; value[1] = val[1]; value[2] = val[2]; }
-    std::string GetGlslDec( const std::string & name ) override { return std::string("uniform vec3 ") + name + ";\n"; }
+    bool GetValue( double val[3] ) { val[0] = value[0]; val[1] = value[1]; val[2] = value[2]; return true; }
+    std::string GetGlslDec( std::string name ) override { return std::string("uniform vec3 ") + name + ";\n"; }
     bool SetUniform( const char * name, vtkShaderProgram * p ) override { return p->SetUniform3f( name, value ); }
     void PrintSelf( const char * name, ostream& os, vtkIndent indent ) override
     { os << indent << name << ": ( " << value[0] << ", " << value[1] << ", " << value[2] << " )" << endl;}
@@ -112,8 +126,10 @@ class vtkCustomUniform4f : public vtkCustomUniform
 {
 public:
     vtkCustomUniform4f( const float val[4] ) { value[0] = val[0]; value[1] = val[1]; value[2] = val[2]; value[3] = val[3]; }
+    vtkOpenGLUniforms::UniformType GetType() override { return vtkOpenGLUniforms::Type4f; }
     void SetValue( const float val[4] ) { value[0] = val[0]; value[1] = val[1]; value[2] = val[2]; value[3] = val[3]; }
-    std::string GetGlslDec( const std::string & name ) override { return std::string("uniform vec4 ") + name + ";\n"; }
+    bool GetValue( float val[4] ) { val[0] = value[0]; val[1] = value[1]; val[2] = value[2]; val[3] = value[3]; return true; }
+    std::string GetGlslDec( std::string name ) override { return std::string("uniform vec4 ") + name + ";\n"; }
     bool SetUniform( const char * name, vtkShaderProgram * p ) override { return p->SetUniform4f( name, value ); }
     void PrintSelf( const char * name, ostream& os, vtkIndent indent ) override
     { os << indent << name << ": ( " << value[0] << ", " << value[1] << ", " << value[2] << ", " << value[3] << " )" << endl;}
@@ -125,8 +141,10 @@ class vtkCustomUniform3uc : public vtkCustomUniform
 {
 public:
     vtkCustomUniform3uc( const unsigned char v[3] ) { value[0] = v[0]; value[1] = v[1]; value[2] = v[2]; }
+    vtkOpenGLUniforms::UniformType GetType() override { return vtkOpenGLUniforms::Type3uc; }
     void SetValue( const unsigned char v[3] ) { value[0] = v[0]; value[1] = v[1]; value[2] = v[2]; }
-    std::string GetGlslDec( const std::string & name ) override { return std::string("uniform vec3 ") + name + ";\n"; }
+    bool GetValue( unsigned char val[3] ) { val[0] = value[0]; val[1] = value[1]; val[2] = value[2]; return true; }
+    std::string GetGlslDec( std::string name ) override { return std::string("uniform vec3 ") + name + ";\n"; }
     bool SetUniform( const char * name, vtkShaderProgram * p ) override { return p->SetUniform3uc( name, value ); }
     void PrintSelf( const char * name, ostream& os, vtkIndent indent ) override
     { os << indent << name << ": ( " << value[0] << ", " << value[1] << ", " << value[2] << " )" << endl;}
@@ -138,8 +156,10 @@ class vtkCustomUniform4uc : public vtkCustomUniform
 {
 public:
     vtkCustomUniform4uc( const unsigned char v[4] ) { value[0] = v[0]; value[1] = v[1]; value[2] = v[2]; value[3] = v[3]; }
+    vtkOpenGLUniforms::UniformType GetType() override { return vtkOpenGLUniforms::Type4uc; }
     void SetValue( const unsigned char v[4] ) { value[0] = v[0]; value[1] = v[1]; value[2] = v[2]; value[3] = v[3]; }
-    std::string GetGlslDec( const std::string & name ) override { return std::string("uniform vec4 ") + name + ";\n"; }
+    bool GetValue( unsigned char val[4] ) { val[0] = value[0]; val[1] = value[1]; val[2] = value[2]; val[3] = value[3]; return true; }
+    std::string GetGlslDec( std::string name ) override { return std::string("uniform vec4 ") + name + ";\n"; }
     bool SetUniform( const char * name, vtkShaderProgram * p ) override { return p->SetUniform4uc( name, value ); }
     void PrintSelf( const char * name, ostream& os, vtkIndent indent ) override
     { os << indent << name << ": ( " << value[0] << ", " << value[1] << ", " << value[2] << ", " << value[3] << " )" << endl;}
@@ -151,9 +171,11 @@ class vtkCustomUniformVtkMatrix3x3 : public vtkCustomUniform
 {
 public:
     vtkCustomUniformVtkMatrix3x3( vtkMatrix3x3 * v ) { value = vtkMatrix3x3::New(); value->DeepCopy( v ); }
+    vtkOpenGLUniforms::UniformType GetType() override { return vtkOpenGLUniforms::TypeVtkMatrix3x3; }
     void SetValue( vtkMatrix3x3 * v ) { value = vtkMatrix3x3::New(); value->DeepCopy( v ); }
+    bool GetValue( vtkMatrix3x3 * v ) { if (v == nullptr || value == nullptr) return false; v->DeepCopy( value ); return true; }
     virtual ~vtkCustomUniformVtkMatrix3x3() override { value->Delete(); }
-    std::string GetGlslDec( const std::string & name ) override { return std::string("uniform mat3 ") + name + ";\n"; }
+    std::string GetGlslDec( std::string name ) override { return std::string("uniform mat3 ") + name + ";\n"; }
     bool SetUniform( const char * name, vtkShaderProgram * p ) override { return p->SetUniformMatrix( name, value ); }
     void PrintSelf( const char * name, ostream& os, vtkIndent indent ) override
     { os << indent << name << endl; value->PrintSelf(os,indent); os << endl;}
@@ -165,9 +187,11 @@ class vtkCustomUniformVtkMatrix4x4 : public vtkCustomUniform
 {
 public:
     vtkCustomUniformVtkMatrix4x4( vtkMatrix4x4 * v ) { value = vtkMatrix4x4::New(); value->DeepCopy( v ); }
+    vtkOpenGLUniforms::UniformType GetType() override { return vtkOpenGLUniforms::TypeVtkMatrix4x4; }
     void SetValue( vtkMatrix4x4 * v ) { value = vtkMatrix4x4::New(); value->DeepCopy( v ); }
+    bool GetValue( vtkMatrix4x4 * v ) { if (v == nullptr || value == nullptr) return false; v->DeepCopy( value ); return true; }
     virtual ~vtkCustomUniformVtkMatrix4x4() override { value->Delete(); }
-    std::string GetGlslDec( const std::string & name ) override { return std::string("uniform mat4 ") + name + ";\n"; }
+    std::string GetGlslDec( std::string name ) override { return std::string("uniform mat4 ") + name + ";\n"; }
     bool SetUniform( const char * name, vtkShaderProgram * p ) override { return p->SetUniformMatrix( name, value ); }
     void PrintSelf( const char * name, ostream& os, vtkIndent indent ) override
     { os << indent << name << endl; value->PrintSelf(os,indent); os << endl;}
@@ -179,8 +203,10 @@ class vtkCustomUniformMatrix3x3 : public vtkCustomUniform
 {
 public:
     vtkCustomUniformMatrix3x3( float * v ) { std::memcpy( value, v, sizeof value ); }
+    vtkOpenGLUniforms::UniformType GetType() override { return vtkOpenGLUniforms::TypeMatrix3x3; }
     void SetValue( float * v ) { std::memcpy( value, v, sizeof value ); }
-    std::string GetGlslDec( const std::string & name ) override { return std::string("uniform mat3 ") + name + ";\n"; }
+    bool GetValue( float * v ) { if (v == nullptr) return false; std::memcpy(v, value, sizeof value); return true; }
+    std::string GetGlslDec( std::string name ) override { return std::string("uniform mat3 ") + name + ";\n"; }
     bool SetUniform( const char * name, vtkShaderProgram * p ) override { return p->SetUniformMatrix3x3( name, value ); }
     void PrintSelf( const char * name, ostream& os, vtkIndent indent ) override
     {
@@ -205,8 +231,10 @@ class vtkCustomUniformMatrix4x4 : public vtkCustomUniform
 {
 public:
     vtkCustomUniformMatrix4x4( float * v ) { std::memcpy( value, v, sizeof value ); }
+    vtkOpenGLUniforms::UniformType GetType() override { return vtkOpenGLUniforms::TypeMatrix4x4; }
     void SetValue( float * v ) { std::memcpy( value, v, sizeof value ); }
-    std::string GetGlslDec( const std::string & name ) override { return std::string("uniform mat4 ") + name + ";\n"; }
+    bool GetValue( float * v ) { if (v == nullptr) return false; std::memcpy(v, value, sizeof value); return true; }
+    std::string GetGlslDec( std::string name ) override { return std::string("uniform mat4 ") + name + ";\n"; }
     bool SetUniform( const char * name, vtkShaderProgram * p ) override { return p->SetUniformMatrix4x4( name, value ); }
     void PrintSelf( const char * name, ostream& os, vtkIndent indent ) override
     {
@@ -231,8 +259,11 @@ class vtkCustomUniform1iv : public vtkCustomUniform
 {
 public:
     vtkCustomUniform1iv( const int count, const int *v ) { SetValue(count,v); }
+    vtkOpenGLUniforms::UniformType GetType() override { return vtkOpenGLUniforms::Type1iv; }
+    vtkIdType GetVectorSize() override { return value.size(); }
     void SetValue( const int count, const int *v ) { value.assign( v, v + count ); }
-    std::string GetGlslDec( const std::string & name ) override
+    bool GetValue( std::vector<int>& v ) { v = value; return true; }
+    std::string GetGlslDec( std::string name ) override
     { return std::string("uniform int ") + name + "[" + patch::to_string(value.size()) + "];\n"; }
     bool SetUniform( const char * name, vtkShaderProgram * p ) override
     { return p->SetUniform1iv( name, static_cast<int>(value.size()), value.data() ); }
@@ -246,8 +277,11 @@ class vtkCustomUniform1fv : public vtkCustomUniform
 {
 public:
     vtkCustomUniform1fv( const int count, const float *v ) { SetValue(count,v); }
+    vtkOpenGLUniforms::UniformType GetType() override { return vtkOpenGLUniforms::Type1fv; }
+    vtkIdType GetVectorSize() override { return value.size(); }
     void SetValue( const int count, const float *v ) { value.assign( v, v + count ); }
-    std::string GetGlslDec( const std::string & name ) override
+    bool GetValue( std::vector<float>& v ) { v = value; return true; }
+    std::string GetGlslDec( std::string name ) override
     { return std::string("uniform float ") + name + "[" + patch::to_string(value.size()) + "];\n"; }
     bool SetUniform( const char * name, vtkShaderProgram * p ) override
     { return p->SetUniform1fv( name, static_cast<int>(value.size()), value.data() ); }
@@ -261,9 +295,12 @@ class vtkCustomUniform2fv : public vtkCustomUniform
 {
 public:
     vtkCustomUniform2fv( const int count, const float (*v)[2] ) { SetValue(count,v); }
+    vtkOpenGLUniforms::UniformType GetType() override { return vtkOpenGLUniforms::Type2fv; }
+    vtkIdType GetVectorSize() override { return value.size(); }
     void SetValue( const int count, const float (*v)[2] )
     { value.assign( reinterpret_cast<const float*>(v), reinterpret_cast<const float*>(v + 2*count ) ); }
-    std::string GetGlslDec( const std::string & name ) override
+    bool GetValue( std::vector<float>& v ) { v = value; return true; }
+    std::string GetGlslDec( std::string name ) override
     { return std::string("uniform vec2 ") + name + "[" + patch::to_string(value.size()/2) + "];\n"; }
     bool SetUniform( const char * name, vtkShaderProgram * p ) override
     { return p->SetUniform2fv( name, static_cast<int>(value.size()/2), reinterpret_cast<const float(*)[2]>(value.data()) ); }
@@ -282,8 +319,11 @@ class vtkCustomUniform3fv : public vtkCustomUniform
 {
 public:
     vtkCustomUniform3fv( const int count, const float (*v)[3] ) { SetValue(count,v); }
+    vtkOpenGLUniforms::UniformType GetType() override { return vtkOpenGLUniforms::Type3fv; }
+    vtkIdType GetVectorSize() override { return value.size(); }
     void SetValue( const int count, const float (*v)[3] ) { value.assign( reinterpret_cast<const float*>(v), reinterpret_cast<const float*>(v + 3*count) ); }
-    std::string GetGlslDec( const std::string & name ) override
+    bool GetValue( std::vector<float>& v ) { v = value; return true; }
+    std::string GetGlslDec( std::string name ) override
     { return std::string("uniform vec3 ") + name + "[" + patch::to_string(value.size()/3) + "];\n"; }
     bool SetUniform( const char * name, vtkShaderProgram * p ) override
     { return p->SetUniform3fv( name, static_cast<int>(value.size()/3), reinterpret_cast<const float(*)[3]>(value.data()) ); }
@@ -302,8 +342,11 @@ class vtkCustomUniform4fv : public vtkCustomUniform
 {
 public:
     vtkCustomUniform4fv( const int count, const float (*v)[4] ) { SetValue(count,v); }
+    vtkOpenGLUniforms::UniformType GetType() override { return vtkOpenGLUniforms::Type4fv; }
+    vtkIdType GetVectorSize() override { return value.size(); }
     void SetValue( const int count, const float (*v)[4] ) { value.assign( reinterpret_cast<const float*>(v), reinterpret_cast<const float*>(v + 4*count) ); }
-    std::string GetGlslDec( const std::string & name ) override
+    bool GetValue( std::vector<float>& v ) { v = value; return true; }
+    std::string GetGlslDec( std::string name ) override
     { return std::string("uniform vec4 ") + name + "[" + patch::to_string(value.size()/4) + "];\n"; }
     bool SetUniform( const char * name, vtkShaderProgram * p ) override
     { return p->SetUniform4fv( name, static_cast<int>(value.size()/4), reinterpret_cast<const float(*)[4]>(value.data()) ); }
@@ -322,8 +365,11 @@ class vtkCustomUniformMatrix4x4v : public vtkCustomUniform
 {
 public:
     vtkCustomUniformMatrix4x4v( const int count, const float *v ) { SetValue(count,v); }
+    vtkOpenGLUniforms::UniformType GetType() override { return vtkOpenGLUniforms::TypeMatrix4x4v; }
+    vtkIdType GetVectorSize() override { return value.size(); }
     void SetValue( const int count, const float *v ) { value.assign( v, v + 16*count ); }
-    std::string GetGlslDec( const std::string & name ) override
+    bool GetValue( std::vector<float>& v ) { v = value; return true; }
+    std::string GetGlslDec( std::string name ) override
     { return std::string("uniform mat4 ") + name + "[" + patch::to_string(value.size()/16) + "];\n"; }
     bool SetUniform( const char * name, vtkShaderProgram * p ) override
     { return p->SetUniformMatrix4x4v( name, static_cast<int>(value.size()/16), value.data() ); }
@@ -364,32 +410,82 @@ public:
         }
     }
 
+    vtkCustomUniform* GetUniform(const char * name)
+    {
+      if (name == nullptr)
+      {
+        return nullptr;
+      }
+      UniformMapT::iterator it = this->Uniforms.find(name);
+      if (it == Uniforms.end())
+      {
+        return nullptr;
+      }
+      return it->second;
+    }
+
     template< class dataT, class uniformT >
-    void AddUniform( const char * name, dataT defaultValue )
+    void SetUniformValue( const char * name, dataT value )
     {
         UniformMapT::iterator it = Uniforms.find( name );
         if( it != Uniforms.end() )
         {
-            vtkErrorMacro( << "vtkOpenGLUniform: overwriting existing uniform variable: " << name << endl );
-            delete (*it).second;
-            Uniforms.erase( it );
+          uniformT * uni = dynamic_cast<uniformT*>(it->second);
+          if (uni)
+          {
+            uni->SetValue(value);
+            return;
+          }
         }
-        Uniforms[std::string(name)] = new uniformT(defaultValue);
+        Uniforms[std::string(name)] = new uniformT(value);
         Modified();
     }
 
     template< class dataT, class uniformT >
-    void AddUniform( const char * name, int count, dataT defaultValue )
+    void SetUniformValue( const char * name, int count, dataT value)
     {
         UniformMapT::iterator it = Uniforms.find( name );
         if( it != Uniforms.end() )
         {
-            vtkErrorMacro( << "vtkOpenGLUniform: overwriting existing uniform variable: " << name << endl );
-            delete (*it).second;
-            Uniforms.erase( it );
+          uniformT * uni = dynamic_cast<uniformT*>(it->second);
+          if (uni)
+          {
+            uni->SetValue(count, value);
+          }
         }
-        Uniforms[std::string(name)] = new uniformT(count, defaultValue);
+        Uniforms[std::string(name)] = new uniformT(count, value);
         Modified();
+    }
+
+    template< class dataT, class uniformT >
+    bool GetUniformValue(const char * name, dataT value)
+    {
+      UniformMapT::iterator it = Uniforms.find(name);
+      if (it != Uniforms.end())
+      {
+        uniformT * uni = dynamic_cast<uniformT*>(it->second);
+        if (uni)
+        {
+          uni->GetValue(value);
+          return true;
+        }
+      }
+      return false;
+    }
+
+    template< class dataT, class uniformT >
+    dataT GetUniformValue(const char * name)
+    {
+      UniformMapT::iterator it = Uniforms.find(name);
+      if (it != Uniforms.end())
+      {
+        uniformT * uni = dynamic_cast<uniformT*>(it->second);
+        if (uni)
+        {
+          return uni->GetValue();
+        }
+      }
+      return nullptr;
     }
 
     void RemoveUniform(const char *name)
@@ -411,36 +507,6 @@ public:
         }
         Uniforms.clear();
         Modified();
-    }
-
-    template< class dataT, class uniformT >
-    void SetUniform( const char *name, const dataT value )
-    {
-        UniformMapT::iterator it = Uniforms.find( name );
-        if( it != Uniforms.end() )
-        {
-            uniformT * uni = dynamic_cast<uniformT*>(it->second);
-            uni->SetValue( value );
-        }
-        else
-        {
-            vtkErrorMacro( << "Trying to set the value of undefined uniform variable: " << name << endl );
-        }
-    }
-
-    template< class dataT, class uniformT >
-    void SetUniform( const char *name, int count, const dataT value )
-    {
-        UniformMapT::iterator it = Uniforms.find( name );
-        if( it != Uniforms.end() )
-        {
-            uniformT * uni = dynamic_cast<uniformT*>(it->second);
-            uni->SetValue( count, value );
-        }
-        else
-        {
-            vtkErrorMacro( << "Trying to set the value of undefined uniform variable: " << name << endl );
-        }
     }
 
     std::string GetDeclarations()
@@ -466,6 +532,9 @@ public:
         return res;
     }
 
+    typedef std::map<std::string, vtkCustomUniform*> UniformMapT;
+    UniformMapT Uniforms;
+
 protected:
 
     vtkUniformInternals() {}
@@ -477,9 +546,6 @@ protected:
 private:
     vtkUniformInternals(const vtkUniformInternals&) = delete;
     void operator=(const vtkUniformInternals&) = delete;
-
-    typedef std::map<std::string,vtkCustomUniform*> UniformMapT;
-    UniformMapT Uniforms;
 };
 
 vtkStandardNewMacro(vtkUniformInternals);
@@ -494,86 +560,87 @@ vtkOpenGLUniforms::~vtkOpenGLUniforms()
     this->Internals->Delete();
 }
 
-void vtkOpenGLUniforms::AddUniformi (const char *name, int defaultValue)
-{ this->Internals->AddUniform<int,vtkCustomUniformi>( name, defaultValue ); }
-void vtkOpenGLUniforms::AddUniformf(const char *name, float defaultValue)
-{ this->Internals->AddUniform<float,vtkCustomUniformf>( name, defaultValue ); }
-void vtkOpenGLUniforms::AddUniform2i(const char *name, const int defaultValue[2])
-{ this->Internals->AddUniform<const int[2],vtkCustomUniform2i>( name, defaultValue ); }
-void vtkOpenGLUniforms::AddUniform2f(const char *name, const float defaultValue[2])
-{ this->Internals->AddUniform<const float[2],vtkCustomUniform2f>( name, defaultValue ); }
-void vtkOpenGLUniforms::AddUniform3f(const char *name, const float defaultValue[3])
-{ this->Internals->AddUniform<const float[3],vtkCustomUniform3f>( name, defaultValue ); }
-void vtkOpenGLUniforms::AddUniform3f(const char *name, const double defaultValue[3])
-{ this->Internals->AddUniform<const double[3],vtkCustomUniform3d>( name, defaultValue ); }
-void vtkOpenGLUniforms::AddUniform4f(const char *name, const float defaultValue[4])
-{ this->Internals->AddUniform<const float[4],vtkCustomUniform4f>( name, defaultValue ); }
-void vtkOpenGLUniforms::AddUniform3uc(const char *name, const unsigned char defaultValue[3]) // maybe remove
-{ this->Internals->AddUniform<const unsigned char[3],vtkCustomUniform3uc>( name, defaultValue ); }
-void vtkOpenGLUniforms::AddUniform4uc(const char *name, const unsigned char defaultValue[4]) // maybe remove
-{ this->Internals->AddUniform<const unsigned char[4],vtkCustomUniform4uc>( name, defaultValue ); }
-void vtkOpenGLUniforms::AddUniformMatrix(const char *name, vtkMatrix3x3 *defaultValue)
-{ this->Internals->AddUniform<vtkMatrix3x3*,vtkCustomUniformVtkMatrix3x3>( name, defaultValue ); }
-void vtkOpenGLUniforms::AddUniformMatrix(const char *name, vtkMatrix4x4 *defaultValue)
-{ this->Internals->AddUniform<vtkMatrix4x4*,vtkCustomUniformVtkMatrix4x4>( name, defaultValue ); }
-void vtkOpenGLUniforms::AddUniformMatrix3x3(const char *name, float *defaultValue)
-{ this->Internals->AddUniform<float*,vtkCustomUniformMatrix3x3>( name, defaultValue ); }
-void vtkOpenGLUniforms::AddUniformMatrix4x4(const char *name, float *defaultValue)
-{ this->Internals->AddUniform<float*,vtkCustomUniformMatrix4x4>( name, defaultValue ); }
-void vtkOpenGLUniforms::AddUniform1iv(const char *name, const int count, const int *f)
-{ this->Internals->AddUniform<const int *,vtkCustomUniform1iv>(name,count,f); }
-void vtkOpenGLUniforms::AddUniform1fv (const char *name, const int count, const float *f)
-{ this->Internals->AddUniform<const float *,vtkCustomUniform1fv>(name,count,f); }
-void vtkOpenGLUniforms::AddUniform2fv (const char *name, const int count, const float(*f)[2])
-{ this->Internals->AddUniform<const float(*)[2],vtkCustomUniform2fv>(name,count,f); }
-void vtkOpenGLUniforms::AddUniform3fv (const char *name, const int count, const float(*f)[3])
-{ this->Internals->AddUniform<const float(*)[3],vtkCustomUniform3fv>(name,count,f); }
-void vtkOpenGLUniforms::AddUniform4fv (const char *name, const int count, const float(*f)[4])
-{ this->Internals->AddUniform<const float(*)[4],vtkCustomUniform4fv>(name,count,f); }
-void vtkOpenGLUniforms::AddUniformMatrix4x4v (const char *name, const int count, float *v)
-{ this->Internals->AddUniform<float *,vtkCustomUniformMatrix4x4v>(name,count,v); }
-
 void vtkOpenGLUniforms::RemoveUniform(const char *name) { this->Internals->RemoveUniform(name); }
 void vtkOpenGLUniforms::RemoveAllUniforms() { this->Internals->RemoveAllUniforms(); }
 
 void vtkOpenGLUniforms::SetUniformi (const char *name, int v)
-{ this->Internals->SetUniform<int,vtkCustomUniformi>(name, v); }
+{ this->Internals->SetUniformValue<int,vtkCustomUniformi>(name, v); }
 void vtkOpenGLUniforms::SetUniformf (const char *name, float v)
-{ this->Internals->SetUniform<float,vtkCustomUniformf>(name,v); }
+{ this->Internals->SetUniformValue<float,vtkCustomUniformf>(name,v); }
 void vtkOpenGLUniforms::SetUniform2i (const char *name, const int v[2])
-{ this->Internals->SetUniform<const int[2],vtkCustomUniform2i>(name,v); }
+{ this->Internals->SetUniformValue<const int[2],vtkCustomUniform2i>(name,v); }
 void vtkOpenGLUniforms::SetUniform2f (const char *name, const float v[2])
-{ this->Internals->SetUniform<const float[2],vtkCustomUniform2f>(name,v); }
+{ this->Internals->SetUniformValue<const float[2],vtkCustomUniform2f>(name,v); }
 void vtkOpenGLUniforms::SetUniform3f (const char *name, const float v[3])
-{ this->Internals->SetUniform<const float[3],vtkCustomUniform3f>(name,v); }
+{ this->Internals->SetUniformValue<const float[3],vtkCustomUniform3f>(name,v); }
 void vtkOpenGLUniforms::SetUniform3f (const char *name, const double v[3])
-{ this->Internals->SetUniform<const double[3],vtkCustomUniform3d>(name,v); }
+{ this->Internals->SetUniformValue<const double[3],vtkCustomUniform3d>(name,v); }
 void vtkOpenGLUniforms::SetUniform4f (const char *name, const float v[4])
-{ this->Internals->SetUniform<const float[4],vtkCustomUniform4f>(name,v); }
+{ this->Internals->SetUniformValue<const float[4],vtkCustomUniform4f>(name,v); }
 void vtkOpenGLUniforms::SetUniform3uc (const char *name, const unsigned char v[3])
-{ this->Internals->SetUniform<const unsigned char[3],vtkCustomUniform3uc>(name,v); }
+{ this->Internals->SetUniformValue<const unsigned char[3],vtkCustomUniform3uc>(name,v); }
 void vtkOpenGLUniforms::SetUniform4uc (const char *name, const unsigned char v[4])
-{ this->Internals->SetUniform<const unsigned char[4],vtkCustomUniform4uc>(name,v); }
+{ this->Internals->SetUniformValue<const unsigned char[4],vtkCustomUniform4uc>(name,v); }
 void vtkOpenGLUniforms::SetUniformMatrix (const char *name, vtkMatrix3x3 *v)
-{ this->Internals->SetUniform<vtkMatrix3x3*,vtkCustomUniformVtkMatrix3x3>(name,v); }
+{ this->Internals->SetUniformValue<vtkMatrix3x3*,vtkCustomUniformVtkMatrix3x3>(name,v); }
 void vtkOpenGLUniforms::SetUniformMatrix (const char *name, vtkMatrix4x4 *v)
-{ this->Internals->SetUniform<vtkMatrix4x4*,vtkCustomUniformVtkMatrix4x4>(name,v); }
+{ this->Internals->SetUniformValue<vtkMatrix4x4*,vtkCustomUniformVtkMatrix4x4>(name,v); }
 void vtkOpenGLUniforms::SetUniformMatrix3x3 (const char *name, float *v)
-{ this->Internals->SetUniform<float*,vtkCustomUniformMatrix3x3>(name,v); }
+{ this->Internals->SetUniformValue<float*,vtkCustomUniformMatrix3x3>(name,v); }
 void vtkOpenGLUniforms::SetUniformMatrix4x4 (const char *name, float *v)
-{ this->Internals->SetUniform<float*,vtkCustomUniformMatrix4x4>(name,v); }
+{ this->Internals->SetUniformValue<float*,vtkCustomUniformMatrix4x4>(name,v); }
 void vtkOpenGLUniforms::SetUniform1iv (const char *name, const int count, const int *f)
-{ this->Internals->SetUniform<const int *,vtkCustomUniform1iv>(name,count,f); }
+{ this->Internals->SetUniformValue<const int *,vtkCustomUniform1iv>(name,count,f); }
 void vtkOpenGLUniforms::SetUniform1fv (const char *name, const int count, const float *f)
-{ this->Internals->SetUniform<const float*,vtkCustomUniform1fv>(name,count,f); }
+{ this->Internals->SetUniformValue<const float*,vtkCustomUniform1fv>(name,count,f); }
 void vtkOpenGLUniforms::SetUniform2fv (const char *name, const int count, const float(*f)[2])
-{ this->Internals->SetUniform<const float(*)[2],vtkCustomUniform2fv>(name,count,f); }
+{ this->Internals->SetUniformValue<const float(*)[2],vtkCustomUniform2fv>(name,count,f); }
 void vtkOpenGLUniforms::SetUniform3fv (const char *name, const int count, const float(*f)[3])
-{ this->Internals->SetUniform<const float(*)[3],vtkCustomUniform3fv>(name,count,f); }
+{ this->Internals->SetUniformValue<const float(*)[3],vtkCustomUniform3fv>(name,count,f); }
 void vtkOpenGLUniforms::SetUniform4fv (const char *name, const int count, const float(*f)[4])
-{ this->Internals->SetUniform<const float(*)[4],vtkCustomUniform4fv>(name,count,f); }
+{ this->Internals->SetUniformValue<const float(*)[4],vtkCustomUniform4fv>(name,count,f); }
 void vtkOpenGLUniforms::SetUniformMatrix4x4v (const char *name, const int count, float *v)
-{ this->Internals->SetUniform<float*,vtkCustomUniformMatrix4x4v>(name,count,v); }
+{ this->Internals->SetUniformValue<float*,vtkCustomUniformMatrix4x4v>(name,count,v); }
+
+bool vtkOpenGLUniforms::GetUniformi (const char *name, int& v)
+{ return this->Internals->GetUniformValue<int,vtkCustomUniformi>(name, v); }
+bool vtkOpenGLUniforms::GetUniformf (const char *name, float& v)
+{ return this->Internals->GetUniformValue<float,vtkCustomUniformf>(name,v); }
+bool vtkOpenGLUniforms::GetUniform2i (const char *name, int v[2])
+{ return this->Internals->GetUniformValue<const int[2],vtkCustomUniform2i>(name,v); }
+bool vtkOpenGLUniforms::GetUniform2f (const char *name, float v[2])
+{ return this->Internals->GetUniformValue<const float[2],vtkCustomUniform2f>(name,v); }
+bool vtkOpenGLUniforms::GetUniform3f (const char *name, float v[3])
+{ return this->Internals->GetUniformValue<const float[3],vtkCustomUniform3f>(name,v); }
+bool vtkOpenGLUniforms::GetUniform3f (const char *name, double v[3])
+{ return this->Internals->GetUniformValue<const double[3],vtkCustomUniform3d>(name,v); }
+bool vtkOpenGLUniforms::GetUniform4f (const char *name, float v[4])
+{ return this->Internals->GetUniformValue<const float[4],vtkCustomUniform4f>(name,v); }
+bool vtkOpenGLUniforms::GetUniform3uc (const char *name, unsigned char v[3])
+{ return this->Internals->GetUniformValue<unsigned char[3],vtkCustomUniform3uc>(name,v); }
+bool vtkOpenGLUniforms::GetUniform4uc (const char *name, unsigned char v[4])
+{ return this->Internals->GetUniformValue<unsigned char[4],vtkCustomUniform4uc>(name,v); }
+bool vtkOpenGLUniforms::GetUniformMatrix (const char *name, vtkMatrix3x3 *v)
+{ return this->Internals->GetUniformValue<vtkMatrix3x3*,vtkCustomUniformVtkMatrix3x3>(name,v); }
+bool vtkOpenGLUniforms::GetUniformMatrix (const char *name, vtkMatrix4x4 *v)
+{ return this->Internals->GetUniformValue<vtkMatrix4x4*,vtkCustomUniformVtkMatrix4x4>(name,v); }
+bool vtkOpenGLUniforms::GetUniformMatrix3x3 (const char *name, float *v)
+{ return this->Internals->GetUniformValue<float*,vtkCustomUniformMatrix3x3>(name,v); }
+bool vtkOpenGLUniforms::GetUniformMatrix4x4 (const char *name, float *v)
+{ return this->Internals->GetUniformValue<float*,vtkCustomUniformMatrix4x4>(name,v); }
+bool vtkOpenGLUniforms::GetUniform1iv (const char *name, std::vector<int>& f)
+{ this->Internals->GetUniformValue<std::vector<int>&,vtkCustomUniform1iv>(name,f); return true; }
+bool vtkOpenGLUniforms::GetUniform1fv (const char *name, const int count, const float *f)
+{ return this->Internals->GetUniformValue<const float*,vtkCustomUniform1fv>(name,count,f); }
+bool vtkOpenGLUniforms::GetUniform2fv (const char *name, const int count, const float(*f)[2])
+{ return this->Internals->GetUniformValue<const float(*)[2],vtkCustomUniform2fv>(name,count,f); }
+bool vtkOpenGLUniforms::GetUniform3fv (const char *name, const int count, const float(*f)[3])
+{ return this->Internals->GetUniformValue<const float(*)[3],vtkCustomUniform3fv>(name,count,f); }
+bool vtkOpenGLUniforms::GetUniform4fv (const char *name, const int count, const float(*f)[4])
+{ return this->Internals->GetUniformValue<const float(*)[4],vtkCustomUniform4fv>(name,count,f); }
+bool vtkOpenGLUniforms::GetUniformMatrix4x4v (const char *name, const int count, float *v)
+{ return this->Internals->GetUniformValue<float*,vtkCustomUniformMatrix4x4v>(name,count,v); }
+
 
 std::string vtkOpenGLUniforms::GetDeclarations()
 { return this->Internals->GetDeclarations(); }
@@ -590,4 +657,41 @@ void vtkOpenGLUniforms::PrintSelf(ostream& os, vtkIndent indent)
 {
     this->Superclass::PrintSelf(os,indent);
     this->Internals->PrintSelf(os,indent);
+}
+
+vtkIdType vtkOpenGLUniforms::GetNumberOfUniforms()
+{
+  return this->Internals->Uniforms.size();
+}
+
+const char* vtkOpenGLUniforms::GetNthUniformName(vtkIdType uniformIndex)
+{
+  if (uniformIndex >= this->GetNumberOfUniforms())
+  {
+    return nullptr;
+  }
+
+  vtkUniformInternals::UniformMapT::iterator it = this->Internals->Uniforms.begin();
+  std::advance(it, uniformIndex);
+  return it->first.c_str();
+}
+
+vtkOpenGLUniforms::UniformType vtkOpenGLUniforms::GetUniformType(const char *name)
+{
+  vtkCustomUniform* uniform = this->Internals->GetUniform(name);
+  if (uniform == nullptr)
+  {
+    return TypeInvalid;
+  }
+  return uniform->GetType();
+}
+
+vtkIdType vtkOpenGLUniforms::GetUniformSize(const char *name)
+{
+  vtkCustomUniform* uniform = this->Internals->GetUniform(name);
+  if (uniform == nullptr)
+  {
+    return TypeInvalid;
+  }
+  return uniform->GetVectorSize();
 }
