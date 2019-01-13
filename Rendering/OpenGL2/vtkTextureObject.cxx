@@ -1465,33 +1465,61 @@ bool vtkTextureObject::Create2DFromRaw(unsigned int width, unsigned int height,
   }
 
   GLenum target = GL_TEXTURE_2D;
-  this->Target = target;
-  this->Components = numComps;
-  this->Width = width;
-  this->Height = height;
-  this->Depth = 1;
-  this->NumberOfDimensions = 2;
-  this->Context->ActivateTexture(this);
-  this->CreateTexture();
-  this->Bind();
 
-  // Source texture data from the PBO.
-  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+  if (this->Target != target
+    || this->Components != numComps
+    || this->Width != width
+    || this->Height != height
+    || this->Depth != 1
+    || this->NumberOfDimensions != 2)
+  {
+    this->Target = target;
+    this->Components = numComps;
+    this->Width = width;
+    this->Height = height;
+    this->Depth = 1;
+    this->NumberOfDimensions = 2;
+    this->Context->ActivateTexture(this);
+    this->CreateTexture();
+    this->Bind();
 
-  glTexImage2D(
-        this->Target,
-        0,
-        this->InternalFormat,
-        static_cast<GLsizei>(this->Width),
-        static_cast<GLsizei>(this->Height),
-        0,
-        this->Format,
-        this->Type,
-        static_cast<const GLvoid *>(data));
+    // Source texture data from the PBO.
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-  vtkOpenGLCheckErrorMacro("failed at glTexImage2D");
+    glTexImage2D(
+      this->Target,
+      0,
+      this->InternalFormat,
+      static_cast<GLsizei>(this->Width),
+      static_cast<GLsizei>(this->Height),
+      0,
+      this->Format,
+      this->Type,
+      static_cast<const GLvoid *>(data));
 
-  this->Deactivate();
+    vtkOpenGLCheckErrorMacro("failed at glTexImage2D");
+
+    this->Deactivate();
+  }
+  else
+  {
+    this->Context->ActivateTexture(this);
+
+    glTexSubImage2D(
+      this->Target,
+      0,
+      0,
+      0,
+      static_cast<GLsizei>(this->Width),
+      static_cast<GLsizei>(this->Height),
+      this->Format,
+      this->Type,
+      static_cast<const GLvoid *>(data));
+
+    vtkOpenGLCheckErrorMacro("failed at glTexSubImage2D");
+
+    this->Deactivate();
+  }
   return true;
 }
 
