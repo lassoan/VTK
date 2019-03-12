@@ -34,8 +34,15 @@
 #include "vtkOutlineSource.h"
 #include "vtkSmartPointer.h"
 
+#include "vtkCleanPolyData.h"
+#include "vtkCompositeDataGeometryFilter.h"
+#include "vtkOutputWindow.h"
+#include "vtkPlaneCutter.h"
+#include "vtkPolyDataReader.h"
+
 int TestContourTriangulatorCutter(int argc, char* argv[])
 {
+  vtkOutputWindow::SetInstance(vtkSmartPointer<vtkOutputWindow>::New());
   vtkSmartPointer<vtkTesting> testHelper =
     vtkSmartPointer<vtkTesting>::New();
   testHelper->AddArguments(argc, argv);
@@ -49,15 +56,24 @@ int TestContourTriangulatorCutter(int argc, char* argv[])
   outline->SetBounds(bounds);
   outline->GenerateFacesOn();
 
+  vtkNew<vtkPolyDataReader> meshReader;
+  meshReader->SetFileName("c:\\Users\\msliv\\Documents\\Segment_1_dec.vtk");
+
   vtkSmartPointer<vtkPlane> plane =
     vtkSmartPointer<vtkPlane>::New();
-  plane->SetNormal(0.0, 0.0, -1.0);
+  plane->SetNormal(0.0, -1.0, 0.0);
   plane->SetOrigin(0.0, 0.0, 0.0);
+  
+  vtkNew<vtkPlaneCutter> cutter;
+  cutter->BuildTreeOff(); // the cutter crashes for complex geometries if build tree is enabled
+  cutter->SetInputConnection(meshReader->GetOutputPort());
+  cutter->SetPlane(plane);
 
-  vtkSmartPointer<vtkCutter> cutter =
-    vtkSmartPointer<vtkCutter>::New();
-  cutter->SetInputConnection(outline->GetOutputPort());
-  cutter->SetCutFunction(plane);
+  vtkNew<vtkCompositeDataGeometryFilter> geometryFilter; // merge multi-piece output of vtkPlaneCutter
+  geometryFilter->SetInputConnection(cutter->GetOutputPort());
+
+  vtkNew<vtkCleanPolyData> pointMerger;
+  pointMerger->SetInputConnection(geometryFilter->GetOutputPort());
 
   vtkSmartPointer<vtkDataSetMapper> cutMapper =
     vtkSmartPointer<vtkDataSetMapper>::New();
@@ -72,7 +88,7 @@ int TestContourTriangulatorCutter(int argc, char* argv[])
   vtkSmartPointer<vtkContourTriangulator> poly =
     vtkSmartPointer<vtkContourTriangulator>::New();
   poly->TriangulationErrorDisplayOn();
-  poly->SetInputConnection(cutter->GetOutputPort());
+  poly->SetInputConnection(pointMerger->GetOutputPort());
 
   vtkSmartPointer<vtkDataSetMapper> polyMapper =
     vtkSmartPointer<vtkDataSetMapper>::New();
@@ -102,9 +118,25 @@ int TestContourTriangulatorCutter(int argc, char* argv[])
   renderer->SetBackground(0.5,0.5,0.5);
   renWin->SetSize(300,300);
 
+  renWin->Render();
   vtkCamera *camera = renderer->GetActiveCamera();
   renderer->ResetCamera();
-  camera->Azimuth(180);
+  camera->Elevation(-90);
+
+  double origin[3];
+  plane->GetOrigin(origin);
+  double normal[3];
+  plane->GetNormal(normal);
+  double newOrigin[3];
+  for (double cutPosition = 0.0; cutPosition < 10.0; cutPosition += 0.01)
+  {
+    newOrigin[0] = origin[0] + cutPosition * normal[0];
+    newOrigin[1] = origin[1] + cutPosition * normal[1];
+    newOrigin[2] = origin[2] + cutPosition * normal[2];
+    plane->SetOrigin(newOrigin);
+    std::cout << "Cut plane position: " << newOrigin[0] << ", " << newOrigin[1] << ", " << newOrigin[2] << std::endl;
+    renWin->Render();
+  }
 
   iren->Initialize();
   iren->Start();
