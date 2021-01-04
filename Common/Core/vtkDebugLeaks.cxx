@@ -327,16 +327,22 @@ int vtkDebugLeaks::PrintCurrentLeaks()
 #ifdef VTK_DEBUG_LEAKS
   if(vtkDebugLeaks::MemoryTable->IsEmpty())
   {
-    // Log something anyway, so users know vtkDebugLeaks is active/working.
-    cout << "vtkDebugLeaks has found no leaks.\n";
+    if (vtkDebugLeaks::PrintLeaks)
+    {
+      // Log something anyway, so users know vtkDebugLeaks is active/working.
+      cout << "vtkDebugLeaks has found no leaks.\n";
+    }
     return 0;
   }
 
   std::string leaks;
-  std::string msg = "vtkDebugLeaks has detected LEAKS!\n";
   vtkDebugLeaks::MemoryTable->PrintTable(leaks);
-  cerr << msg;
-  cerr << leaks << endl << std::flush;
+  if (vtkDebugLeaks::PrintLeaks)
+  {
+    std::string msg = "vtkDebugLeaks has detected LEAKS!\n";
+    cerr << msg;
+    cerr << leaks << endl << std::flush;
+  }
 
 #ifdef _WIN32
   if(getenv("DASHBOARD_TEST_FROM_CTEST") ||
@@ -345,34 +351,38 @@ int vtkDebugLeaks::PrintCurrentLeaks()
     // Skip dialogs when running on dashboard.
     return 1;
   }
-  std::string::size_type myPos = 0;
-  int cancel = 0;
-  int count = 0;
-  while(!cancel && myPos != leaks.npos)
+  if (vtkDebugLeaks::PrintLeaks)
   {
-    std::string::size_type newPos = leaks.find('\n',myPos);
-    if (newPos != leaks.npos)
+    std::string msg;
+    std::string::size_type myPos = 0;
+    int cancel = 0;
+    int count = 0;
+    while (!cancel && myPos != leaks.npos)
     {
-      msg += leaks.substr(myPos,newPos-myPos);
-      msg += "\n";
-      myPos = newPos;
-      myPos++;
+      std::string::size_type newPos = leaks.find('\n', myPos);
+      if (newPos != leaks.npos)
+      {
+        msg += leaks.substr(myPos, newPos - myPos);
+        msg += "\n";
+        myPos = newPos;
+        myPos++;
+      }
+      else
+      {
+        myPos = newPos;
+      }
+      count++;
+      if (count == 10)
+      {
+        count = 0;
+        cancel = vtkDebugLeaks::DisplayMessageBox(msg.c_str());
+        msg = "";
+      }
     }
-    else
+    if (!cancel && count > 0)
     {
-      myPos = newPos;
+      vtkDebugLeaks::DisplayMessageBox(msg.c_str());
     }
-    count++;
-    if (count == 10)
-    {
-      count = 0;
-      cancel = vtkDebugLeaks::DisplayMessageBox(msg.c_str());
-      msg = "";
-    }
-  }
-  if (!cancel && count > 0)
-  {
-    vtkDebugLeaks::DisplayMessageBox(msg.c_str());
   }
 #endif
 #endif
@@ -415,6 +425,18 @@ void vtkDebugLeaks::SetExitError(int flag)
 }
 
 //----------------------------------------------------------------------------
+bool vtkDebugLeaks::GetPrintLeaks()
+{
+  return vtkDebugLeaks::PrintLeaks;
+}
+
+//----------------------------------------------------------------------------
+void vtkDebugLeaks::SetPrintLeaks(bool enable)
+{
+  vtkDebugLeaks::PrintLeaks = enable;
+}
+
+//----------------------------------------------------------------------------
 void vtkDebugLeaks::ClassInitialize()
 {
 #ifdef VTK_DEBUG_LEAKS
@@ -426,11 +448,13 @@ void vtkDebugLeaks::ClassInitialize()
 
   // Default to error when leaks occur while running tests.
   vtkDebugLeaks::ExitError = 1;
+  vtkDebugLeaks::PrintLeaks = true;
   vtkDebugLeaks::Observer = nullptr;
 #else
   vtkDebugLeaks::MemoryTable = nullptr;
   vtkDebugLeaks::CriticalSection = nullptr;
   vtkDebugLeaks::ExitError = 0;
+  vtkDebugLeaks::PrintLeaks = false;
   vtkDebugLeaks::Observer = nullptr;
 #endif
 }
@@ -468,6 +492,9 @@ vtkSimpleCriticalSection* vtkDebugLeaks::CriticalSection;
 
 // Purposely not initialized.  ClassInitialize will handle it.
 int vtkDebugLeaks::ExitError;
+
+// Purposely not initialized.  ClassInitialize will handle it.
+bool vtkDebugLeaks::PrintLeaks;
 
 // Purposely not initialized.  ClassInitialize will handle it.
 vtkDebugLeaksObserver* vtkDebugLeaks::Observer;

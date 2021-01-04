@@ -90,6 +90,18 @@ public:
   static void SetExitError(int);
   //@}
 
+  //@{
+  /**
+   * Get/Set flag for printing information about memory leaks.
+   * It can be used to force the process to have a clean output
+   * (nothing printed on process output or displayed in messageboxes),
+   * even if VTK is compiled with VTK_DEBUG_LEAKS enabled.
+   * Default is on when VTK_DEBUG_LEAKS is on and off otherwise.
+   */
+  static bool GetPrintLeaks();
+  static void SetPrintLeaks(bool enable);
+  //@}
+
   static void SetDebugLeaksObserver(vtkDebugLeaksObserver* observer);
   static vtkDebugLeaksObserver* GetDebugLeaksObserver();
 
@@ -113,6 +125,7 @@ private:
   static vtkSimpleCriticalSection* CriticalSection;
   static vtkDebugLeaksObserver* Observer;
   static int ExitError;
+  static bool PrintLeaks;
 
   vtkDebugLeaks(const vtkDebugLeaks&) = delete;
   void operator=(const vtkDebugLeaks&) = delete;
