@@ -1478,7 +1478,12 @@ void vtkOpenGLFramebufferObject::Download(
 int vtkOpenGLFramebufferObject::GetMultiSamples()
 {
   int abuff = this->ActiveBuffers[0];
-  return this->ColorBuffers[abuff]->GetSamples();
+  vtkFOInfo* foInfo = this->ColorBuffers[abuff];
+  if (!foInfo)
+    {
+    return 0;
+    }
+  return foInfo->GetSamples();
 }
 
 bool vtkOpenGLFramebufferObject::PopulateFramebuffer(int width, int height)
