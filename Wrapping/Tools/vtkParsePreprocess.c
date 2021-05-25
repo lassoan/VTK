@@ -1,3 +1,572 @@
+#ifndef BARRUST_SIMPLE_SET_H__
+#define BARRUST_SIMPLE_SET_H__
+/*******************************************************************************
+***
+***     Author: Tyler Barrus
+***     email:  barrust@gmail.com
+***
+***     Version: 0.2.0
+***     Purpose: Simple, yet effective, set implementation
+***
+***     License: MIT 2016
+***
+***     URL: https://github.com/barrust/set
+***
+*******************************************************************************/
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+#include <inttypes.h> /* uint64_t */
+
+/* https://gcc.gnu.org/onlinedocs/gcc/Alternate-Keywords.html#Alternate-Keywords */
+#ifndef __GNUC__
+#define __inline__ inline
+#endif
+
+  typedef uint64_t (*set_hash_function)(const char* key);
+
+  typedef struct
+  {
+    char* _key;
+    uint64_t _hash;
+  } SimpleSetNode, simple_set_node;
+
+  typedef struct
+  {
+    simple_set_node** nodes;
+    uint64_t number_nodes;
+    uint64_t used_nodes;
+    set_hash_function hash_function;
+  } SimpleSet, simple_set;
+
+  /*  Initialize the set either with default parameters (hash function and space)
+      or optionally set the set with specifed values
+
+      Returns:
+          SET_MALLOC_ERROR: If an error occured setting up the memory
+          SET_TRUE: On success
+  */
+  int set_init_alt(SimpleSet* set, uint64_t num_els, set_hash_function hash);
+  static __inline__ int set_init(SimpleSet* set) { return set_init_alt(set, 1024, NULL); }
+
+  /* Utility function to clear out the set */
+  int set_clear(SimpleSet* set);
+
+  /* Free all memory that is part of the set */
+  int set_destroy(SimpleSet* set);
+
+  /*  Add element to set
+
+      Returns:
+          SET_TRUE if added
+          SET_ALREADY_PRESENT if already present
+          SET_CIRCULAR_ERROR if set is completely full
+          SET_MALLOC_ERROR if unable to grow the set
+      NOTE: SET_CIRCULAR_ERROR should never happen, but is there for insurance!
+  */
+  int set_add(SimpleSet* set, const char* key);
+
+  /*  Remove element from the set
+
+      Returns:
+          SET_TRUE if removed
+          SET_FALSE if not present
+  */
+  int set_remove(SimpleSet* set, const char* key);
+
+  /*  Check if key in set
+
+      Returns:
+          SET_TRUE if present,
+          SET_FALSE if not found
+          SET_CIRCULAR_ERROR if set is full and not found
+      NOTE: SET_CIRCULAR_ERROR should never happen, but is there for insurance!
+  */
+  int set_contains(SimpleSet* set, const char* key);
+
+  /* Return the number of elements in the set */
+  uint64_t set_length(SimpleSet* set);
+
+  /*  Set res to the union of s1 and s2
+   */
+  int set_union(SimpleSet* res, SimpleSet* s1, SimpleSet* s2);
+
+  /*  Set res to the intersection of s1 and s2
+   */
+  int set_intersection(SimpleSet* res, SimpleSet* s1, SimpleSet* s2);
+
+  /*  Set res to the difference between s1 and s2
+   */
+  int set_difference(SimpleSet* res, SimpleSet* s1, SimpleSet* s2);
+
+  /*  Set res to the symmetric difference between s1 and s2
+   */
+  int set_symmetric_difference(SimpleSet* res, SimpleSet* s1, SimpleSet* s2);
+
+  /*  Return SET_TRUE if test is fully contained in s2; returns SET_FALSE
+      otherwise
+  */
+  int set_is_subset(SimpleSet* test, SimpleSet* against);
+
+  /*  Inverse of subset; return SET_TRUE if set test fully contains
+   */
+  static __inline__ int set_is_superset(SimpleSet* test, SimpleSet* against)
+  {
+    return set_is_subset(against, test);
+  }
+
+  /*  Strict subset ensures that the test is a subset of against, but that
+   */
+  int set_is_subset_strict(SimpleSet* test, SimpleSet* against);
+
+  /*  Strict superset ensures that the test is a superset of against, but that
+   */
+  static __inline__ int set_is_superset_strict(SimpleSet* test, SimpleSet* against)
+  {
+    return set_is_subset_strict(against, test);
+  }
+
+  /*  Return an array of the elements in the set
+      NOTE: Up to the caller to free the memory */
+  char** set_to_array(SimpleSet* set, uint64_t* size);
+
+  /*  Compare two sets for equality (size, keys same, etc)
+
+      Returns:
+          SET_RIGHT_GREATER if left is less than right
+          SET_LEFT_GREATER if right is less than left
+          SET_EQUAL if left is the same size as right and keys match
+          SET_UNEQUAL if size is the same but elements are different
+  */
+  int set_cmp(SimpleSet* left, SimpleSet* right);
+
+  // void set_printf(SimpleSet *set);                                           /* TODO: implement
+  // */
+
+#define SET_TRUE 0
+#define SET_FALSE -1
+#define SET_MALLOC_ERROR -2
+#define SET_CIRCULAR_ERROR -3
+#define SET_OCCUPIED_ERROR -4
+#define SET_ALREADY_PRESENT 1
+
+#define SET_RIGHT_GREATER 3
+#define SET_LEFT_GREATER 1
+#define SET_EQUAL 0
+#define SET_UNEQUAL 2
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
+
+#endif /* END SIMPLE SET HEADER */
+
+/*******************************************************************************
+***
+***     Author: Tyler Barrus
+***     email:  barrust@gmail.com
+***
+***     Version: 0.2.0
+***
+***     License: MIT 2016
+***
+*******************************************************************************/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX_FULLNESS_PERCENT 0.25 /* arbitrary */
+
+/* PRIVATE FUNCTIONS */
+static uint64_t __default_hash(const char* key);
+static int __get_index(SimpleSet* set, const char* key, uint64_t hash, uint64_t* index);
+static int __assign_node(SimpleSet* set, const char* key, uint64_t hash, uint64_t index);
+static void __free_index(SimpleSet* set, uint64_t index);
+static int __set_contains(SimpleSet* set, const char* key, uint64_t hash);
+static int __set_add(SimpleSet* set, const char* key, uint64_t hash);
+static void __relayout_nodes(SimpleSet* set, uint64_t start, short end_on_null);
+
+/*******************************************************************************
+***        FUNCTIONS DEFINITIONS
+*******************************************************************************/
+
+int set_init_alt(SimpleSet* set, uint64_t num_els, set_hash_function hash)
+{
+  set->nodes = (simple_set_node**)malloc(num_els * sizeof(simple_set_node*));
+  if (set->nodes == NULL)
+  {
+    return SET_MALLOC_ERROR;
+  }
+  set->number_nodes = num_els;
+  uint64_t i;
+  for (i = 0; i < set->number_nodes; ++i)
+  {
+    set->nodes[i] = NULL;
+  }
+  set->used_nodes = 0;
+  set->hash_function = (hash == NULL) ? &__default_hash : hash;
+  return SET_TRUE;
+}
+
+int set_clear(SimpleSet* set)
+{
+  uint64_t i;
+  for (i = 0; i < set->number_nodes; ++i)
+  {
+    if (set->nodes[i] != NULL)
+    {
+      __free_index(set, i);
+    }
+  }
+  set->used_nodes = 0;
+  return SET_TRUE;
+}
+
+int set_destroy(SimpleSet* set)
+{
+  set_clear(set);
+  free(set->nodes);
+  set->number_nodes = 0;
+  set->used_nodes = 0;
+  set->hash_function = NULL;
+  return SET_TRUE;
+}
+
+int set_add(SimpleSet* set, const char* key)
+{
+  uint64_t hash = set->hash_function(key);
+  return __set_add(set, key, hash);
+}
+
+int set_contains(SimpleSet* set, const char* key)
+{
+  uint64_t index, hash = set->hash_function(key);
+  return __get_index(set, key, hash, &index);
+}
+
+int set_remove(SimpleSet* set, const char* key)
+{
+  uint64_t index, hash = set->hash_function(key);
+  int pos = __get_index(set, key, hash, &index);
+  if (pos != SET_TRUE)
+  {
+    return pos;
+  }
+  // remove this node
+  __free_index(set, index);
+  // re-layout nodes
+  __relayout_nodes(set, index, 0);
+  --set->used_nodes;
+  return SET_TRUE;
+}
+
+uint64_t set_length(SimpleSet* set)
+{
+  return set->used_nodes;
+}
+
+char** set_to_array(SimpleSet* set, uint64_t* size)
+{
+  *size = set->used_nodes;
+  char** results = (char**)calloc(set->used_nodes + 1, sizeof(char*));
+  uint64_t i, j = 0;
+  size_t len;
+  for (i = 0; i < set->number_nodes; ++i)
+  {
+    if (set->nodes[i] != NULL)
+    {
+      len = strlen(set->nodes[i]->_key);
+      results[j] = (char*)calloc(len + 1, sizeof(char));
+      memcpy(results[j], set->nodes[i]->_key, len);
+      ++j;
+    }
+  }
+  return results;
+}
+
+int set_union(SimpleSet* res, SimpleSet* s1, SimpleSet* s2)
+{
+  if (res->used_nodes != 0)
+  {
+    return SET_OCCUPIED_ERROR;
+  }
+  // loop over both s1 and s2 and get keys and insert them into res
+  uint64_t i;
+  for (i = 0; i < s1->number_nodes; ++i)
+  {
+    if (s1->nodes[i] != NULL)
+    {
+      __set_add(res, s1->nodes[i]->_key, s1->nodes[i]->_hash);
+    }
+  }
+  for (i = 0; i < s2->number_nodes; ++i)
+  {
+    if (s2->nodes[i] != NULL)
+    {
+      __set_add(res, s2->nodes[i]->_key, s2->nodes[i]->_hash);
+    }
+  }
+  return SET_TRUE;
+}
+
+int set_intersection(SimpleSet* res, SimpleSet* s1, SimpleSet* s2)
+{
+  if (res->used_nodes != 0)
+  {
+    return SET_OCCUPIED_ERROR;
+  }
+  // loop over both one of s1 and s2: get keys, check the other, and insert them into res if it is
+  uint64_t i;
+  for (i = 0; i < s1->number_nodes; ++i)
+  {
+    if (s1->nodes[i] != NULL)
+    {
+      if (__set_contains(s2, s1->nodes[i]->_key, s1->nodes[i]->_hash) == SET_TRUE)
+      {
+        __set_add(res, s1->nodes[i]->_key, s1->nodes[i]->_hash);
+      }
+    }
+  }
+  return SET_TRUE;
+}
+
+/* difference is s1 - s2 */
+int set_difference(SimpleSet* res, SimpleSet* s1, SimpleSet* s2)
+{
+  if (res->used_nodes != 0)
+  {
+    return SET_OCCUPIED_ERROR;
+  }
+  // loop over s1 and keep only things not in s2
+  uint64_t i;
+  for (i = 0; i < s1->number_nodes; ++i)
+  {
+    if (s1->nodes[i] != NULL)
+    {
+      if (__set_contains(s2, s1->nodes[i]->_key, s1->nodes[i]->_hash) != SET_TRUE)
+      {
+        __set_add(res, s1->nodes[i]->_key, s1->nodes[i]->_hash);
+      }
+    }
+  }
+  return SET_TRUE;
+}
+
+int set_symmetric_difference(SimpleSet* res, SimpleSet* s1, SimpleSet* s2)
+{
+  if (res->used_nodes != 0)
+  {
+    return SET_OCCUPIED_ERROR;
+  }
+  uint64_t i;
+  // loop over set 1 and add elements that are unique to set 1
+  for (i = 0; i < s1->number_nodes; ++i)
+  {
+    if (s1->nodes[i] != NULL)
+    {
+      if (__set_contains(s2, s1->nodes[i]->_key, s1->nodes[i]->_hash) != SET_TRUE)
+      {
+        __set_add(res, s1->nodes[i]->_key, s1->nodes[i]->_hash);
+      }
+    }
+  }
+  // loop over set 2 and add elements that are unique to set 2
+  for (i = 0; i < s2->number_nodes; ++i)
+  {
+    if (s2->nodes[i] != NULL)
+    {
+      if (__set_contains(s1, s2->nodes[i]->_key, s2->nodes[i]->_hash) != SET_TRUE)
+      {
+        __set_add(res, s2->nodes[i]->_key, s2->nodes[i]->_hash);
+      }
+    }
+  }
+  return SET_TRUE;
+}
+
+int set_is_subset(SimpleSet* test, SimpleSet* against)
+{
+  uint64_t i;
+  for (i = 0; i < test->number_nodes; ++i)
+  {
+    if (test->nodes[i] != NULL)
+    {
+      if (__set_contains(against, test->nodes[i]->_key, test->nodes[i]->_hash) == SET_FALSE)
+      {
+        return SET_FALSE;
+      }
+    }
+  }
+  return SET_TRUE;
+}
+
+int set_is_subset_strict(SimpleSet* test, SimpleSet* against)
+{
+  if (test->used_nodes >= against->used_nodes)
+  {
+    return SET_FALSE;
+  }
+  return set_is_subset(test, against);
+}
+
+int set_cmp(SimpleSet* left, SimpleSet* right)
+{
+  if (left->used_nodes < right->used_nodes)
+  {
+    return SET_RIGHT_GREATER;
+  }
+  else if (right->used_nodes < left->used_nodes)
+  {
+    return SET_LEFT_GREATER;
+  }
+  uint64_t i;
+  for (i = 0; i < left->number_nodes; ++i)
+  {
+    if (left->nodes[i] != NULL)
+    {
+      if (set_contains(right, left->nodes[i]->_key) != SET_TRUE)
+      {
+        return SET_UNEQUAL;
+      }
+    }
+  }
+
+  return SET_EQUAL;
+}
+
+/*******************************************************************************
+***        PRIVATE FUNCTIONS
+*******************************************************************************/
+static uint64_t __default_hash(const char* key)
+{
+  // FNV-1a hash (http://www.isthe.com/chongo/tech/comp/fnv/)
+  size_t i, len = strlen(key);
+  uint64_t h = 14695981039346656073ULL; // FNV_OFFSET 64 bit
+  for (i = 0; i < len; ++i)
+  {
+    h = h ^ (unsigned char)key[i];
+    h = h * 1099511628211ULL; // FNV_PRIME 64 bit
+  }
+  return h;
+}
+
+static int __set_contains(SimpleSet* set, const char* key, uint64_t hash)
+{
+  uint64_t index;
+  return __get_index(set, key, hash, &index);
+}
+
+static int __set_add(SimpleSet* set, const char* key, uint64_t hash)
+{
+  uint64_t index;
+  if (__set_contains(set, key, hash) == SET_TRUE)
+    return SET_ALREADY_PRESENT;
+
+  // Expand nodes if we are close to our desired fullness
+  if ((float)set->used_nodes / set->number_nodes > MAX_FULLNESS_PERCENT)
+  {
+    uint64_t num_els = set->number_nodes * 2; // we want to double each time
+    simple_set_node** tmp =
+      (simple_set_node**)realloc(set->nodes, num_els * sizeof(simple_set_node*));
+    if (tmp == NULL || set->nodes == NULL) // malloc failure
+      return SET_MALLOC_ERROR;
+
+    set->nodes = tmp;
+    uint64_t i, orig_num_els = set->number_nodes;
+    for (i = orig_num_els; i < num_els; ++i)
+      set->nodes[i] = NULL;
+
+    set->number_nodes = num_els;
+    // re-layout all nodes
+    __relayout_nodes(set, 0, 1);
+  }
+  // add element in
+  int res = __get_index(set, key, hash, &index);
+  if (res == SET_FALSE)
+  { // this is the first open slot
+    __assign_node(set, key, hash, index);
+    ++set->used_nodes;
+    return SET_TRUE;
+  }
+  return res;
+}
+
+static int __get_index(SimpleSet* set, const char* key, uint64_t hash, uint64_t* index)
+{
+  uint64_t i, idx;
+  idx = hash % set->number_nodes;
+  i = idx;
+  size_t len = strlen(key);
+  while (1)
+  {
+    if (set->nodes[i] == NULL)
+    {
+      *index = i;
+      return SET_FALSE; // not here OR first open slot
+    }
+    else if (hash == set->nodes[i]->_hash && len == strlen(set->nodes[i]->_key) &&
+      strncmp(key, set->nodes[i]->_key, len) == 0)
+    {
+      *index = i;
+      return SET_TRUE;
+    }
+    ++i;
+    if (i == set->number_nodes)
+      i = 0;
+    if (i == idx) // this means we went all the way around and the set is full
+      return SET_CIRCULAR_ERROR;
+  }
+}
+
+static int __assign_node(SimpleSet* set, const char* key, uint64_t hash, uint64_t index)
+{
+  size_t len = strlen(key);
+  set->nodes[index] = (simple_set_node*)malloc(sizeof(simple_set_node));
+  set->nodes[index]->_key = (char*)calloc(len + 1, sizeof(char));
+  memcpy(set->nodes[index]->_key, key, len);
+  set->nodes[index]->_hash = hash;
+  return SET_TRUE;
+}
+
+static void __free_index(SimpleSet* set, uint64_t index)
+{
+  free(set->nodes[index]->_key);
+  free(set->nodes[index]);
+  set->nodes[index] = NULL;
+}
+
+static void __relayout_nodes(SimpleSet* set, uint64_t start, short end_on_null)
+{
+  uint64_t index = 0, i;
+  for (i = start; i < set->number_nodes; ++i)
+  {
+    if (set->nodes[i] != NULL)
+    {
+      __get_index(set, set->nodes[i]->_key, set->nodes[i]->_hash, &index);
+      if (i != index)
+      { // we are moving this node
+        __assign_node(set, set->nodes[i]->_key, set->nodes[i]->_hash, index);
+        __free_index(set, i);
+      }
+    }
+    else if (end_on_null == 0 && i != start)
+    {
+      break;
+    }
+  }
+}
+
+
+#if defined(_WIN32) && !defined(__MINGW32__) && !defined(__CYGWIN__)
+#include <Windows.h>
+SimpleSet* ExistingFiles = 0;
+#endif
+
+
 /*=========================================================================
 
   Program:   Visualization Toolkit
@@ -1732,6 +2301,23 @@ const char* preproc_find_include_file(
     return output;
   }
 
+#if defined(_WIN32) && !defined(__MINGW32__) && !defined(__CYGWIN__)
+  // Set subdir to non-zero if the filename specifies subdirectories.
+  // For such filenames we don't restrict the search to the ExistingFiles cache
+  // because that cache only contains file in that specific folder.
+  int subdir = 0;
+  j = 0;
+  while (filename[j])
+  {
+    if (filename[j] == '/')
+    {
+      subdir = 1;
+      break;
+    }
+    j++;
+  }
+#endif
+
   /* Make sure the current filename is already added */
   if (info->FileName)
   {
@@ -1819,6 +2405,81 @@ const char* preproc_find_include_file(
         output[j + m] = '\0';
       }
 
+#if defined(_WIN32) && !defined(__MINGW32__) && !defined(__CYGWIN__)
+      if (!ExistingFiles)
+      {
+        ExistingFiles = (SimpleSet*)malloc(sizeof(SimpleSet));
+        set_init(ExistingFiles);
+
+        // vtkParse_InitStringCache(ExistingFilesCache);
+        // no known file cache has been created yet
+        for (int includeDirIndex = 0; includeDirIndex < n; includeDirIndex++)
+        {
+          const char* includeDir = info->IncludeDirectories[includeDirIndex];
+
+          // Check that the input path plus 3 is not longer than MAX_PATH.
+          // Three characters are for the "\*" plus NULL appended below.
+          if (strlen(includeDir) > (MAX_PATH - 3))
+          {
+            continue;
+          }
+
+          // Prepare string for use with FindFile functions.  First, copy the
+          // string to a buffer, then append '\*' to the directory name.
+          char szDir[MAX_PATH];
+          strcpy(szDir, includeDir);
+          strcat(szDir, "\\*");
+
+          // Find the first file in the directory.
+          WIN32_FIND_DATA ffd;
+          HANDLE hFind = FindFirstFile(szDir, &ffd);
+          if (INVALID_HANDLE_VALUE == hFind)
+          {
+            continue;
+          }
+
+          // List all the files in the directory with some info about them.
+          do
+          {
+            if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+            {
+              continue;
+            }
+            const char* name = ffd.cFileName;
+            char fullPath[MAX_PATH];
+            if (strlen(includeDir) > (MAX_PATH - strlen(ffd.cFileName) - 1))
+            {
+              continue;
+            }
+
+            // Prepare string for use with FindFile functions.  First, copy the
+            // string to a buffer, then append '\*' to the directory name.
+            strcpy(fullPath, includeDir);
+            strcat(fullPath, "/");
+            strcat(fullPath, ffd.cFileName);
+
+            // Store unix-style path separators in the cache because that's what we get from CMake
+            int q = 0;
+            while (fullPath[q] != '\0')
+            {
+              if (fullPath[q] == '\\')
+              {
+                fullPath[q] = '/';
+              }
+              q++;
+            }
+
+            set_add(ExistingFiles, fullPath);
+
+          } while (FindNextFile(hFind, &ffd) != 0);
+          FindClose(hFind);
+        }
+
+        //fprintf(stderr,
+        //      "Number of include dirs: %lli, Number of found files: %i\n", n, set_length(ExistingFiles), n);
+      }
+#endif
+
       if (count == 0)
       {
         nn = info->NumberOfIncludeFiles;
@@ -1832,7 +2493,28 @@ const char* preproc_find_include_file(
         }
       }
 #if defined(_WIN32) && !defined(__CYGWIN__)
-      else if (stat(output, &fs) == 0 && (fs.st_mode & _S_IFMT) != _S_IFDIR)
+      // stat is very slow on Windows, use the ExistingFiles cache instead of
+      // asking the file system
+      int fileFound = 0;
+      if (count != 0)
+      {
+        if (set_contains(ExistingFiles, output) == SET_TRUE)
+        {
+          fileFound = 1;
+        }
+        else if (i == 0 || subdir)
+        {
+          // This is the current directory (i==0) or a relative path, which
+          // the ExistingFiles cache may not contain, in which case we ask
+          // the file system to check existence of a file.
+          if ((stat(output, &fs) == 0 && (fs.st_mode & _S_IFMT) != _S_IFDIR))
+          {
+            fileFound = 1;
+          }
+        }
+      }
+
+      if (fileFound)
 #else
       else if (stat(output, &fs) == 0 && !S_ISDIR(fs.st_mode))
 #endif
