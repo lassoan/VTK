@@ -26,22 +26,25 @@ vtkCommand::vtkCommand()
   , PassiveObserver(0)
 {
 #ifdef VTK_DEBUG_LEAKS
-  vtkDebugLeaks::ConstructClass(leakname);
+  //vtkDebugLeaks::ConstructClass(leakname);
 #endif
 }
 
 //----------------------------------------------------------------
 void vtkCommand::UnRegister()
 {
+  /*
   int refcount = this->GetReferenceCount() - 1;
   this->SetReferenceCount(refcount);
   if (refcount <= 0)
   {
 #ifdef VTK_DEBUG_LEAKS
-    vtkDebugLeaks::DestructClass(leakname);
+    //vtkDebugLeaks::DestructClass(leakname);
 #endif
     delete this;
   }
+  */
+  vtkObjectBase::UnRegister(0);
 }
 
 //----------------------------------------------------------------

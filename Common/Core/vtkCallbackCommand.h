@@ -46,7 +46,13 @@ class VTKCOMMONCORE_EXPORT vtkCallbackCommand : public vtkCommand
 public:
   vtkTypeMacro(vtkCallbackCommand, vtkCommand);
 
-  static vtkCallbackCommand* New() { return new vtkCallbackCommand; }
+  static vtkCallbackCommand* New()
+    {
+    auto result = new vtkCallbackCommand;
+    result->InitializeObjectBase();
+    return result;
+    }
+  //static vtkCallbackCommand* New() { return new vtkCallbackCommand; }
 
   /**
    * Satisfy the superclass API for callbacks. Recall that the caller is
