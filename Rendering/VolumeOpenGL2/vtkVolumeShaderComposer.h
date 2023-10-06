@@ -1327,16 +1327,16 @@ inline std::string ComputeLightingDeclaration(vtkRenderer* vtkNotUsed(ren), vtkV
   }
   if (nDotL > 0.0)
   {
-    diffuse = nDotL * in_diffuse[component] *
+    diffuse = nDotL * in_diffuse[0] *
     in_lightDiffuseColor[0] * color.rgb;
     vDotR = max(vDotR, 0.0);
-    specular = pow(vDotR, in_shininess[component]) *
-                 in_specular[component] *
+    specular = pow(vDotR, in_shininess[0]) *
+                 in_specular[0] *
                  in_lightSpecularColor[0];
   }
   // For the headlight, ignore the light's ambient color
   // for now as it is causing the old mapper tests to fail
-  finalColor.xyz = in_ambient[component] * color.rgb +
+  finalColor.xyz = in_ambient[0] * color.rgb +
                    diffuse + specular;
 
         )***";
@@ -1404,7 +1404,7 @@ inline std::string ComputeLightingDeclaration(vtkRenderer* vtkNotUsed(ren), vtkV
       }
       if (rDotV > 0.0)
       {
-        float sf = attenuation * pow(rDotV, in_shininess[component]);
+        float sf = attenuation * pow(rDotV, in_shininess[0]);
         specular += (sf * in_lightSpecularColor[posNum]);
       }
     }
@@ -1436,9 +1436,9 @@ inline std::string ComputeLightingDeclaration(vtkRenderer* vtkNotUsed(ren), vtkV
     }
     ambient += in_lightAmbientColor[dirNum];
   }
-  finalColor.xyz = in_ambient[component] * ambient +
-                   in_diffuse[component] * diffuse * color.rgb +
-                   in_specular[component] * specular;
+  finalColor.xyz = in_ambient[0] * ambient +
+                   in_diffuse[0] * diffuse * color.rgb +
+                   in_specular[0] * specular;
 
       )***";
     }
@@ -1679,8 +1679,8 @@ inline std::string ComputeLightingMultiDeclaration(vtkRenderer* vtkNotUsed(ren),
         \n        diffuse = nDotL * in_diffuse[component] *\
         \n                 in_lightDiffuseColor[0] * color.rgb;\
         \n        vDotR = max(vDotR, 0.0);\
-        \n        specular = pow(vDotR, in_shininess[component]) *\
-        \n                   in_specular[component] *\
+        \n        specular = pow(vDotR, in_shininess[0]) *\
+        \n                   in_specular[0] *\
         \n                   in_lightSpecularColor[0];\
         \n     }\
         \n  finalColor.xyz = in_ambient[component] * color.rgb * in_lightAmbientColor[0] +\
@@ -1838,6 +1838,17 @@ inline std::string ComputeColorDeclaration(vtkRenderer* vtkNotUsed(ren),
           \n  }");
     return shaderStr;
   }
+
+  else if (noOfComponents == 4 && !independentComponents)
+  {
+    shaderStr += std::string("\
+          \nvec4 computeColor(vec4 scalar, float opacity)\
+          \n  {\
+          \n  return clamp(computeLighting(vec4(scalar.xyz, opacity), 3, 0.0), 0.0, 1.0);\
+          \n  }");
+    return shaderStr;
+  }
+
   else
   {
     shaderStr += std::string("\
@@ -2494,7 +2505,7 @@ inline std::string PreComputeGradientsImpl(vtkRenderer* vtkNotUsed(ren), vtkVolu
   }
   else
   {
-    shader << "g_gradients_0[0] = computeGradient(g_dataPos, 0, in_volume[0], 0);\n";
+    shader << "g_gradients_0[0] = computeGradient(g_dataPos, 3, in_volume[0], 0);\n";
   }
 
   return shader.str();
