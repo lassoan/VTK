@@ -755,6 +755,15 @@ public:
   virtual void SetInformation(vtkInformation*);
   ///@}
 
+  ///@{
+  /**
+   * Enable this to see far cells appear in front
+   * to see backside of objects without changing the perspective.
+   */
+  vtkSetMacro(ReversePerspective, bool);
+  vtkGetMacro(ReversePerspective, bool);
+  ///@}
+
 protected:
   vtkCamera();
   ~vtkCamera() override;
@@ -803,6 +812,7 @@ protected:
    */
   void PartialCopy(vtkCamera* source);
 
+  bool ReversePerspective{false};
   double WindowCenter[2];
   double ObliqueAngles[2];
   double FocalPoint[3];

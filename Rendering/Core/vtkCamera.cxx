@@ -17,6 +17,7 @@
 #include "vtkCallbackCommand.h"
 #include "vtkInformation.h"
 #include "vtkMath.h"
+#include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkPerspectiveTransform.h"
 #include "vtkRenderer.h"
@@ -1109,6 +1110,16 @@ void vtkCamera::ComputeProjectionTransform(double aspect, double nearz, double f
 
   // adjust Z-buffer range
   this->ProjectionTransform->AdjustZBuffer(-1, +1, nearz, farz);
+
+  if (this->ReversePerspective)
+  {
+    // If we want to see far cells appear in front then we need
+    // to invert sign of z coordinate of the mapped points by
+    // multiplying by diag(1, 1, -1, 1) matrix from the left.
+    vtkNew<vtkMatrix4x4> reverseZ;
+    reverseZ->SetElement(2, 2, -1);
+    this->ProjectionTransform->Concatenate(reverseZ);
+  }
 
   if (this->ParallelProjection)
   {
