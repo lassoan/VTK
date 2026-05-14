@@ -195,6 +195,20 @@ if(MSVC)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /utf-8")
 endif()
 
+# On Linux, GCC libstdc++ headers annotate std:: names with __attribute__((visibility("default"))),
+# which overrides -fvisibility=hidden at compile time. Use a linker version script so that std::
+# template symbols instantiated inside VTK are kept local to each shared library and cannot
+# interpose symbols from other shared libraries (e.g. QtWebEngine's std::regex symbols).
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND
+    CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  set(_vtk_std_hide_map "${CMAKE_CURRENT_LIST_DIR}/vtk_std_hide.map")
+  set(VTK_REQUIRED_SHARED_LINKER_FLAGS
+    "${VTK_REQUIRED_SHARED_LINKER_FLAGS} -Wl,--version-script,${_vtk_std_hide_map}")
+  set(VTK_REQUIRED_MODULE_LINKER_FLAGS
+    "${VTK_REQUIRED_MODULE_LINKER_FLAGS} -Wl,--version-script,${_vtk_std_hide_map}")
+  unset(_vtk_std_hide_map)
+endif ()
+
 #-----------------------------------------------------------------------------
 # Add compiler flags VTK needs to work on this platform.  This must be
 # done after the call to CMAKE_EXPORT_BUILD_SETTINGS, but before any

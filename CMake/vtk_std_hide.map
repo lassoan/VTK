@@ -1,0 +1,13 @@
+VTK_STD_LOCAL {
+  local:
+    _ZNSt*;
+    _ZNKSt*;
+    _ZSt*;
+    _ZTISt*;
+    _ZTSSt*;
+    _ZTVSt*;
+    _ZGVNSt*;
+    _ZGVSt*;
+    _ZN9__gnu_cxx*;
+    _ZNK9__gnu_cxx*;
+};
